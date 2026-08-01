@@ -1,8 +1,10 @@
 # AgentAllowance
 
-AgentAllowance is a Stellar Testnet smart-account treasury for autonomous x402 payments. It combines
-delegated G-account signers, ledger expiry, an OpenZeppelin rolling spending limit, an exact recipient
-policy, and a policy-aware facilitator validator.
+AgentAllowance is a policy-aware x402 infrastructure layer for delegated AI spending on Stellar.
+It resolves the demonstrated compatibility gap between OpenZeppelin Smart Accounts and strict Stellar
+x402 facilitator validation while preserving exact SEP-41 transfer checks. The system combines a
+smart-account treasury, delegated G-account signers, ledger expiry, an OpenZeppelin rolling spending
+limit, an exact recipient policy, and a reusable policy-aware facilitator extension.
 
 The existing compatibility proof remains unchanged under
 `proofs/stellar-x402-smart-account/` and is used as the regression source of truth.
@@ -72,12 +74,33 @@ Settlement is blocked unless verification succeeded and the operator explicitly 
 ```bash
 ALLOW_SETTLEMENT=yes pnpm --filter @agentallowance/testnet-cli run settle
 STATE_LABEL=after pnpm --filter @agentallowance/testnet-cli run status
+pnpm --filter @agentallowance/testnet-cli run archive-settlement
 ```
 
 Each `authorize` command creates a new timestamped directory under `attempts/`; it never reuses a
 transaction XDR or overwrites earlier scenario evidence. `RUN_DIRECTORY` selects a deployment and
 `ATTEMPT_DIRECTORY` selects an exact payment attempt. Relayer secrets live only under the ignored
 `artifacts/local/` runtime tree and are never copied into Testnet evidence.
+
+## Confirmed Testnet settlement
+
+The first policy-aware settlement completed on 2026-08-01. The facilitator accepted the smart
+C-account payer and the two delegated authorization entries, then the configured Relayer submitted
+the SEP-41 transfer as source and fee payer.
+
+```text
+Payment amount       100000 stroops (0.01 XLM)
+Transaction          211b39fe4859ecfa754de8d597286c4b697be33bdae05c6fadd5bfb7ec90658c
+Ledger               3916054
+Treasury balance     5000000 -> 4900000
+Merchant balance     100000000000 -> 100000100000
+Spending-limit state 0 -> 100000
+```
+
+The successful attempt is under
+`artifacts/testnet/runs/2026-08-01T15-10-40-519Z/attempts/2026-08-01T15-56-13-904Z-successful-payment/`.
+The transaction RPC response, facilitator logs, verify/settle responses, simulations, auth entries,
+and transaction XDR are retained there. The hosted OpenZeppelin facilitator was not modified.
 
 ## Facilitator deployment
 
