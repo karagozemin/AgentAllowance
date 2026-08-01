@@ -3,6 +3,9 @@
 This deployment is for the Testnet demo only. It runs the policy-aware facilitator on the official
 OpenZeppelin Relayer `1.7.0` image and uses one Render Free Key Value instance. Free web services
 sleep after inactivity, have an ephemeral filesystem, and can take about a minute to wake up.
+The Blueprint disables OpenZeppelin's persistent Node.js plugin worker pool because its startup heap
+budget exceeds the free instance's 512 MB memory; the Relayer uses its supported legacy ts-node
+execution path instead. This changes execution capacity, not facilitator validation.
 
 ## Security boundary
 
@@ -98,4 +101,3 @@ review of the exact amount, token, payer, merchant, facilitator URL, and success
 
 Render Free has no durable service guarantee. Keep the local Docker deployment as the deterministic
 fallback for judging and demos.
-
