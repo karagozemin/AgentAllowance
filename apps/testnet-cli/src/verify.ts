@@ -6,18 +6,29 @@ import {
   MAX_TIMEOUT_SECONDS,
   NETWORK,
 } from "./config.js";
-import { latestRunDirectory, readRunJson, writeJson, writeText } from "./runtime.js";
+import {
+  latestAttemptDirectory,
+  readAttemptJson,
+  readRunJson,
+  writeJson,
+  writeText,
+} from "./runtime.js";
 
 if (!FACILITATOR_URL) throw new Error("X402_FACILITATOR_URL is required");
 type Deployment = { paymentAmount: string; merchant: string; token: string; smartAccount: string };
+type Authorization = {
+  scenario: string;
+  payment: { amount: string; recipient: string; token: string; payer: string };
+};
 const deployment = await readRunJson<Deployment>("deployment.json");
-const directory = await latestRunDirectory();
+const authorization = await readAttemptJson<Authorization>("authorization.json");
+const directory = await latestAttemptDirectory();
 const transaction = (await readFile(path.join(directory, "transaction.xdr"), "utf8")).trim();
 const paymentRequirements = {
   scheme: "exact" as const,
   network: NETWORK,
-  amount: deployment.paymentAmount,
-  payTo: deployment.merchant,
+  amount: authorization.payment.amount,
+  payTo: authorization.payment.recipient,
   maxTimeoutSeconds: MAX_TIMEOUT_SECONDS,
   asset: deployment.token,
   extra: { areFeesSponsored: true },
@@ -50,16 +61,19 @@ const classification = body.isValid === true
     ? "missing_payer_auth"
     : invalidReason.includes("has_subinvocations")
       ? "has_subinvocations"
-      : invalidReason.includes("event_not_transfer")
-        ? "event_not_transfer"
-        : invalidReason.includes("policy_event_unapproved")
-          ? "policy_event_unapproved"
-          : invalidReason.includes("policy_event_malformed")
-            ? "policy_event_malformed"
-            : invalidReason.includes("auth_structure")
-              ? "auth_structure_invalid"
-              : "another_error";
+        : invalidReason.includes("event_not_transfer")
+          ? "event_not_transfer"
+          : invalidReason.includes("simulation_failed")
+            ? "simulation_failed"
+            : invalidReason.includes("policy_event_unapproved")
+              ? "policy_event_unapproved"
+              : invalidReason.includes("policy_event_malformed")
+                ? "policy_event_malformed"
+                : invalidReason.includes("auth_structure")
+                  ? "auth_structure_invalid"
+                  : "another_error";
 await writeJson(directory, "classification.json", {
+  scenario: authorization.scenario,
   classification,
   invalidReason: invalidReason || null,
 });

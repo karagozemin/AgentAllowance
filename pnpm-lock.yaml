@@ -11,6 +11,9 @@ importers:
       '@types/node':
         specifier: 24.10.1
         version: 24.10.1
+      esbuild:
+        specifier: 0.25.12
+        version: 0.25.12
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -45,6 +48,28 @@ importers:
       '@agentallowance/stellar-smart-account-auth':
         specifier: workspace:*
         version: link:../stellar-smart-account-auth
+      '@stellar/stellar-sdk':
+        specifier: 16.2.0
+        version: 16.2.0
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.15
+        version: 4.0.15(@types/node@24.10.1)(tsx@4.20.6)
+
+  packages/relayer-plugin-x402-facilitator:
+    dependencies:
+      '@agentallowance/facilitator-policy':
+        specifier: workspace:*
+        version: link:../facilitator-policy
+      '@openzeppelin/relayer-sdk':
+        specifier: 1.8.0
+        version: 1.8.0
       '@stellar/stellar-sdk':
         specifier: 16.2.0
         version: 16.2.0
@@ -404,6 +429,10 @@ packages:
   '@noble/hashes@2.2.0':
     resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
     engines: {node: '>= 20.19.0'}
+
+  '@openzeppelin/relayer-sdk@1.8.0':
+    resolution: {integrity: sha512-2nMn9Sg0j52kp/GdhavvL8zgwRJqDqXq4yM1uYewfYndns6WGUS3zxcDICgHenMVURo8YWdJG7E7Ockck3SNFg==}
+    engines: {node: '>=22.14.0', npm: use pnpm, pnpm: '>=9', yarn: use pnpm}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     resolution: {integrity: sha512-RrPokAb7dmbxFoeO3TloqHyOjgye8RkBhSqmp4aJMIex4c9r46ZstPnleDQOq1t46VOVjwIuwNogIqbodV1Vvg==}
@@ -1109,6 +1138,13 @@ snapshots:
   '@noble/ed25519@3.1.0': {}
 
   '@noble/hashes@2.2.0': {}
+
+  '@openzeppelin/relayer-sdk@1.8.0':
+    dependencies:
+      axios: 1.18.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true

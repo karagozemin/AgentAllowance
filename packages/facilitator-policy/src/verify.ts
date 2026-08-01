@@ -1,4 +1,4 @@
-import { Networks } from "@stellar/stellar-sdk";
+import { Networks, xdr } from "@stellar/stellar-sdk";
 import type { FacilitatorPolicyManifest } from "./manifest.js";
 import { validatePolicyAwareSimulationEvents } from "./events.js";
 import { validateDelegatedPaymentTransaction } from "./verify-authorization.js";
@@ -49,7 +49,7 @@ export async function verifyPolicyAwarePayment(options: {
   x402Version: number;
   transactionXdr: string;
   paymentRequirements: X402PaymentRequirements;
-  simulationEvents: string[];
+  simulationEvents: Array<xdr.DiagnosticEvent | string>;
   manifest: FacilitatorPolicyManifest;
   observedWasmHashes?: Readonly<Record<string, string>>;
 }): Promise<PolicyAwareVerifyResult> {

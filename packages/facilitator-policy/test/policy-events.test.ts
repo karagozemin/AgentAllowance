@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { StrKey, xdr } from "@stellar/stellar-sdk";
+import { Address, Keypair, StrKey, xdr } from "@stellar/stellar-sdk";
 import {
   OPENZEPPELIN_SPENDING_LIMIT_V_0_7_2,
   validatePolicyAwareSimulationEvents,
@@ -80,6 +80,26 @@ function replacePolicyField(raw: string, field: string, value: xdr.ScVal): strin
       ? new xdr.ScMapEntry({ key: entry.key(), val: value })
       : entry,
   );
+  return rebuildEvent(raw, { data: xdr.ScVal.scvMap(entries) });
+}
+
+function replacePolicyContextRecipient(raw: string, recipient: string): string {
+  const diagnostic = xdr.DiagnosticEvent.fromXDR(raw, "base64");
+  const data = diagnostic.event().body().v0().data();
+  const entries = (data.map() ?? []).map((entry) => {
+    if (entry.key().switch().name !== "scvSymbol" || entry.key().sym().toString() !== "context") {
+      return entry;
+    }
+    const context = entry.val();
+    const call = context.vec()?.[1];
+    const argsField = call?.map()?.find(
+      (field) => field.key().switch().name === "scvSymbol" && field.key().sym().toString() === "args",
+    );
+    const args = argsField?.val().vec();
+    if (!argsField || !args || args.length !== 3) throw new Error("Unexpected proof context shape");
+    argsField.val(xdr.ScVal.scvVec([args[0]!, Address.fromString(recipient).toScVal(), args[2]!]));
+    return new xdr.ScMapEntry({ key: entry.key(), val: context });
+  });
   return rebuildEvent(raw, { data: xdr.ScVal.scvMap(entries) });
 }
 
@@ -170,6 +190,17 @@ describe("policy-aware simulation event validation", () => {
 
   test("rejects a policy rule ID that differs from the signed rule", () => {
     const changed = replacePolicyField(policyEvent, "context_rule_id", xdr.ScVal.scvU32(99));
+    const result = validatePolicyAwareSimulationEvents({
+      diagnosticEvents: [changed, transferEvent],
+      expected,
+      manifest,
+    });
+    expect(result).toMatchObject({ valid: false, reason: "POLICY_EVENT_CONTEXT_MISMATCH" });
+  });
+
+  test("rejects an altered recipient embedded in the policy context", () => {
+    const attacker = Keypair.random().publicKey();
+    const changed = replacePolicyContextRecipient(policyEvent, attacker);
     const result = validatePolicyAwareSimulationEvents({
       diagnosticEvents: [changed, transferEvent],
       expected,

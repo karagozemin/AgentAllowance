@@ -1,17 +1,17 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { FACILITATOR_API_KEY, FACILITATOR_URL } from "./config.js";
-import { latestRunDirectory, readRunJson, writeJson, writeText } from "./runtime.js";
+import { latestAttemptDirectory, readAttemptJson, writeJson, writeText } from "./runtime.js";
 
 if (!FACILITATOR_URL) throw new Error("X402_FACILITATOR_URL is required");
-const classification = await readRunJson<{ classification: string }>("classification.json");
+const classification = await readAttemptJson<{ classification: string }>("classification.json");
 if (classification.classification !== "success") {
   throw new Error(`Settlement blocked: verify classification is ${classification.classification}`);
 }
 if (process.env.ALLOW_SETTLEMENT !== "yes") {
   throw new Error("Settlement blocked: set ALLOW_SETTLEMENT=yes after reviewing verify-response.json");
 }
-const directory = await latestRunDirectory();
+const directory = await latestAttemptDirectory();
 const request = await readFile(path.join(directory, "x402-payment-payload.json"), "utf8");
 const headers: Record<string, string> = { "Content-Type": "application/json" };
 if (FACILITATOR_API_KEY) headers.Authorization = `Bearer ${FACILITATOR_API_KEY}`;

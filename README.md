@@ -17,7 +17,8 @@ The existing compatibility proof remains unchanged under
 - `packages/stellar-smart-account-auth`: builds and validates the two-entry delegated authorization.
 - `packages/facilitator-policy`: validates the exact transfer, two-entry auth structure, approved
   `spending_limit_enforced` event, and pinned policy WASM identity.
-- `apps/testnet-cli`: separate deploy, authorize, verify, settle, and status commands.
+- `packages/relayer-plugin-x402-facilitator`: pinned OpenZeppelin fork with the policy-aware branch.
+- `apps/testnet-cli`: separate deploy, relayer preparation, scenario authorization, verify, settle, and status commands.
 
 ## Pinned versions
 
@@ -55,10 +56,12 @@ funds missing Stellar CLI identities, deploys three contracts, and funds the sma
 Testnet state.
 
 ```bash
-pnpm --filter @agentallowance/testnet-cli deploy
-STATE_LABEL=before pnpm --filter @agentallowance/testnet-cli status
-pnpm --filter @agentallowance/testnet-cli authorize
-pnpm --filter @agentallowance/testnet-cli verify
+pnpm --filter @agentallowance/testnet-cli run deploy
+STATE_LABEL=before pnpm --filter @agentallowance/testnet-cli run status
+pnpm run relayer:prepare
+pnpm run relayer:start
+SCENARIO=successful-payment pnpm --filter @agentallowance/testnet-cli run authorize
+pnpm --filter @agentallowance/testnet-cli run verify
 ```
 
 Review `artifacts/testnet/latest.json`, the referenced `verify-response.json`, transaction XDR,
@@ -67,19 +70,21 @@ simulation logs, authorization entries, and manifest before settlement.
 Settlement is blocked unless verification succeeded and the operator explicitly enables it:
 
 ```bash
-ALLOW_SETTLEMENT=yes pnpm --filter @agentallowance/testnet-cli settle
-STATE_LABEL=after pnpm --filter @agentallowance/testnet-cli status
+ALLOW_SETTLEMENT=yes pnpm --filter @agentallowance/testnet-cli run settle
+STATE_LABEL=after pnpm --filter @agentallowance/testnet-cli run status
 ```
 
-Every command accepts `RUN_DIRECTORY=/absolute/path/to/run` to operate on a specific run instead of
-the latest pointer. Secrets and API keys are never written to artifacts.
+Each `authorize` command creates a new timestamped directory under `attempts/`; it never reuses a
+transaction XDR or overwrites earlier scenario evidence. `RUN_DIRECTORY` selects a deployment and
+`ATTEMPT_DIRECTORY` selects an exact payment attempt. Relayer secrets live only under the ignored
+`artifacts/local/` runtime tree and are never copied into Testnet evidence.
 
 ## Facilitator deployment
 
-The hosted OpenZeppelin facilitator still rejects the valid policy event. Deploy a pinned fork or
-adapter using [the integration contract](docs/openzeppelin-facilitator-integration.md). Do not point
-the Testnet CLI at the hosted endpoint and interpret its known `event_not_transfer` response as a
-product-compatible facilitator.
+The hosted OpenZeppelin facilitator still rejects the valid policy event. The local fork uses the
+official `openzeppelin/openzeppelin-relayer:1.7.0` image and the deployment steps in
+[the integration guide](docs/openzeppelin-facilitator-integration.md). Do not interpret the hosted
+endpoint's known `event_not_transfer` response as product compatibility.
 
 MPP, AgentAllowance UI, npm publication, multi-asset support, threshold administration, and hosted
 OpenZeppelin deployment are intentionally outside this MVP core.

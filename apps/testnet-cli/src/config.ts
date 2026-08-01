@@ -1,8 +1,12 @@
 import dotenv from "dotenv";
 import { Asset, Networks } from "@stellar/stellar-sdk";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-dotenv.config({ path: ".env.local" });
-dotenv.config();
+const workspaceRoot = fileURLToPath(new URL("../../..", import.meta.url));
+dotenv.config({ path: path.join(workspaceRoot, ".env.local") });
+dotenv.config({ path: path.join(workspaceRoot, ".env") });
+dotenv.config({ path: path.join(workspaceRoot, "artifacts/local/relayer/latest.env") });
 
 export const NETWORK = "stellar:testnet" as const;
 export const NETWORK_PASSPHRASE = Networks.TESTNET;
@@ -13,10 +17,24 @@ export const TOKEN = process.env.STELLAR_TOKEN_CONTRACT ?? Asset.native().contra
 
 export const IDENTITIES = {
   feePayer: process.env.STELLAR_FEE_PAYER_IDENTITY ?? "agentallowance-fee-payer",
+  relayer: process.env.STELLAR_RELAYER_IDENTITY ?? "agentallowance-relayer",
   admin: process.env.STELLAR_ADMIN_IDENTITY ?? "agentallowance-admin",
   delegate: process.env.STELLAR_DELEGATE_IDENTITY ?? "agentallowance-delegate",
   merchant: process.env.STELLAR_MERCHANT_IDENTITY ?? "agentallowance-merchant",
+  unapprovedRecipient:
+    process.env.STELLAR_UNAPPROVED_RECIPIENT_IDENTITY ?? "agentallowance-unapproved-recipient",
 } as const;
+
+export const SCENARIOS = ["successful-payment", "over-limit", "unapproved-recipient"] as const;
+export type Scenario = (typeof SCENARIOS)[number];
+
+export function selectedScenario(): Scenario {
+  const value = process.env.SCENARIO ?? "successful-payment";
+  if (!SCENARIOS.includes(value as Scenario)) {
+    throw new Error(`SCENARIO must be one of: ${SCENARIOS.join(", ")}`);
+  }
+  return value as Scenario;
+}
 
 export const FUND_AMOUNT = BigInt(process.env.FUND_AMOUNT ?? "5000000");
 export const PAYMENT_AMOUNT = BigInt(process.env.PAYMENT_AMOUNT ?? "100000");

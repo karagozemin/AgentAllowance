@@ -18,8 +18,16 @@ import {
   MAX_TIMEOUT_SECONDS,
   NETWORK_PASSPHRASE,
   RPC_URL,
+  selectedScenario,
 } from "./config.js";
-import { latestRunDirectory, readRunJson, stellar, writeJson, writeText } from "./runtime.js";
+import {
+  createAttemptDirectory,
+  latestRunDirectory,
+  readRunJson,
+  stellar,
+  writeJson,
+  writeText,
+} from "./runtime.js";
 
 type Deployment = {
   token: string;
@@ -27,20 +35,31 @@ type Deployment = {
   merchant: string;
   delegate: string;
   feePayer: string;
+  unapprovedRecipient: string;
   allowanceRuleId: number;
   paymentAmount: string;
+  spendingLimit: string;
 };
 
 const deployment = await readRunJson<Deployment>("deployment.json");
-const directory = await latestRunDirectory();
+const runDirectory = await latestRunDirectory();
+const scenario = selectedScenario();
+const directory = await createAttemptDirectory(runDirectory, scenario);
+const paymentAmount = process.env.PAYMENT_AMOUNT_OVERRIDE
+  ? BigInt(process.env.PAYMENT_AMOUNT_OVERRIDE)
+  : scenario === "over-limit"
+    ? BigInt(deployment.spendingLimit) + 1n
+    : BigInt(deployment.paymentAmount);
+const recipient = process.env.PAYMENT_RECIPIENT_OVERRIDE
+  ?? (scenario === "unapproved-recipient" ? deployment.unapprovedRecipient : deployment.merchant);
 const server = new rpc.Server(RPC_URL);
 const latest = await server.getLatestLedger();
 const validUntil = Number(latest.sequence) + Math.max(2, Math.ceil(MAX_TIMEOUT_SECONDS / 5));
 const invocation = transferInvocation({
   token: deployment.token,
   from: deployment.smartAccount,
-  to: deployment.merchant,
-  amount: BigInt(deployment.paymentAmount),
+  to: recipient,
+  amount: paymentAmount,
 });
 const source = new Account(deployment.feePayer, "0");
 const recordingTx = new TransactionBuilder(source, { fee: "1000000", networkPassphrase: NETWORK_PASSPHRASE })
@@ -79,6 +98,15 @@ const enforcing = await server._simulateTransaction(finalTx, undefined, "enforce
 await writeJson(directory, "simulation-enforce-response.json", enforcing);
 await writeText(directory, "transaction.xdr", finalTx.toXDR());
 await writeJson(directory, "authorization.json", {
+  scenario,
+  runDirectory,
+  attemptDirectory: directory,
+  payment: {
+    amount: paymentAmount.toString(),
+    recipient,
+    token: deployment.token,
+    payer: deployment.smartAccount,
+  },
   validUntil,
   currentLedger: latest.sequence,
   authDigest: auth.authDigest.toString("hex"),

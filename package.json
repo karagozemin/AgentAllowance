@@ -11,10 +11,15 @@
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "test:contracts": "cargo test --workspace",
-    "build:contracts": "stellar contract build"
+    "build:contracts": "stellar contract build",
+    "relayer:prepare": "pnpm --filter @agentallowance/testnet-cli prepare-relayer",
+    "relayer:start": "docker compose --env-file artifacts/local/relayer/latest.env -f deploy/relayer/docker-compose.yml up -d",
+    "relayer:logs": "docker compose --env-file artifacts/local/relayer/latest.env -f deploy/relayer/docker-compose.yml logs -f relayer",
+    "relayer:stop": "docker compose --env-file artifacts/local/relayer/latest.env -f deploy/relayer/docker-compose.yml down"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
+    "esbuild": "0.25.12",
     "typescript": "5.9.3",
     "vitest": "4.0.15"
   }
