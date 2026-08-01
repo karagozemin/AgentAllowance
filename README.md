@@ -102,6 +102,27 @@ The successful attempt is under
 The transaction RPC response, facilitator logs, verify/settle responses, simulations, auth entries,
 and transaction XDR are retained there. The hosted OpenZeppelin facilitator was not modified.
 
+## Confirmed Render Testnet settlement
+
+The Render-hosted policy-aware deployment completed a second independent settlement on 2026-08-01.
+It first returned `isValid: true` for a fresh ledger-bounded authorization, then settled the exact
+same 100000-stroop payment through the configured OpenZeppelin Relayer.
+
+```text
+Facilitator           https://agentallowance-facilitator.onrender.com/api/v1/plugins/x402-facilitator/call
+Payment amount        100000 stroops (0.01 XLM)
+Transaction           400a97d03eb6a866088d5ccb95660f1b52454ae661b6c88b87e2f31061c571a9
+Ledger                3918507
+Treasury balance      4900000 -> 4800000
+Merchant balance      100000100000 -> 100000200000
+Spending-limit state  100000 -> 200000
+```
+
+The append-only live evidence is under
+`artifacts/testnet/runs/2026-08-01T15-10-40-519Z/attempts/2026-08-01T19-21-09-897Z-successful-payment/`.
+The matching before/after state snapshots are named `state-render-before-approved-*` and
+`state-render-after-approved-*` in the deployment run directory.
+
 ## Facilitator deployment
 
 The hosted OpenZeppelin facilitator still rejects the valid policy event. The local fork uses the
