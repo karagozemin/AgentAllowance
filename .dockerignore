@@ -1,0 +1,17 @@
+.git
+.github
+.agents
+node_modules
+target
+dist
+artifacts
+proofs
+contracts
+apps
+tools
+docs
+.env
+.env.local
+*.log
+.DS_Store
+

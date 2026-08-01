@@ -1,0 +1,58 @@
+services:
+  - type: keyvalue
+    name: agentallowance-redis
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+  - type: web
+    name: agentallowance-facilitator
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: APP_PORT
+        value: "10000"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: agentallowance-redis
+          property: connectionString
+      - key: API_KEY
+        generateValue: true
+      - key: KEYSTORE_PASSPHRASE
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+      - key: LOG_MODE
+        value: stdout
+      - key: METRICS_ENABLED
+        value: "false"
+      - key: ENABLE_SWAGGER
+        value: "false"
+      - key: ACTIX_WORKERS
+        value: "1"
+      - key: TOKIO_WORKER_THREADS
+        value: "1"
+      - key: PLUGIN_MAX_CONCURRENCY
+        value: "1"
+      - key: PLUGIN_POOL_MIN_THREADS
+        value: "1"
+      - key: PLUGIN_POOL_MAX_THREADS
+        value: "1"
+      - key: PLUGIN_POOL_CONCURRENT_TASKS
+        value: "1"
+      - key: PLUGIN_WORKER_HEAP_MB
+        value: "128"
+      - key: REDIS_POOL_MAX_SIZE
+        value: "2"
+      - key: MAX_CONNECTIONS
+        value: "32"
+      - key: RATE_LIMIT_REQUESTS_PER_SECOND
+        value: "2"
+      - key: RATE_LIMIT_BURST_SIZE
+        value: "5"
+
