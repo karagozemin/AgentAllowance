@@ -34,7 +34,7 @@ services:
       - key: ENABLE_SWAGGER
         value: "false"
       - key: REQUEST_TIMEOUT_SECONDS
-        value: "100"
+        value: "170"
       - key: ACTIX_WORKERS
         value: "1"
       - key: TOKIO_WORKER_THREADS
