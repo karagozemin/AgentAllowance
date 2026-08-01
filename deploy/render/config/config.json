@@ -32,9 +32,9 @@
     {
       "id": "x402-facilitator",
       "path": "x402-facilitator/index.ts",
-      "timeout": 30,
+      "timeout": 90,
       "emit_logs": true,
-      "emit_traces": true,
+      "emit_traces": false,
       "forward_logs": true,
       "raw_response": true,
       "allow_get_invocation": true,
@@ -70,4 +70,3 @@
     }
   ]
 }
-
