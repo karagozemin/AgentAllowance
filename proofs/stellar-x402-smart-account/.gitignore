@@ -1,0 +1,6 @@
+node_modules/
+target/
+.env.local
+artifacts/runs/
+artifacts/latest
+

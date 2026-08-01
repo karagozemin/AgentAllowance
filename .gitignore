@@ -1,0 +1,9 @@
+node_modules/
+dist/
+target/
+.env
+.env.local
+artifacts/local/
+artifacts/testnet/
+*.log
+.DS_Store

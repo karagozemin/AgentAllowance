@@ -1,0 +1,24 @@
+{
+  "name": "@agentallowance/testnet-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "tsx src/deploy.ts",
+    "authorize": "tsx src/authorize.ts",
+    "verify": "tsx src/verify.ts",
+    "settle": "tsx src/settle.ts",
+    "status": "tsx src/status.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@agentallowance/stellar-smart-account-auth": "workspace:*",
+    "@stellar/stellar-sdk": "16.2.0",
+    "dotenv": "16.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}
