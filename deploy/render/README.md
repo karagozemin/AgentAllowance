@@ -6,16 +6,12 @@ sleep after inactivity, have an ephemeral filesystem, and can take about a minut
 The Blueprint disables OpenZeppelin's persistent Node.js plugin worker pool because its startup heap
 budget exceeds the free instance's 512 MB memory; the Relayer uses its supported legacy ts-node
 execution path instead. This changes execution capacity, not facilitator validation.
-The first plugin call after a cold start can take tens of seconds. OpenZeppelin Relayer `1.7.0`
-hard-codes a 30-second plugin-to-relayer socket timeout, which is too short when Render throttles the
-free instance during ts-node startup. The Dockerfile applies an exact-match, version-pinned patch to
-raise only that internal timeout to 90 seconds. The Testnet demo uses a 150-second plugin timeout and
-a 170-second HTTP timeout. This increases authenticated request occupancy and is not a production
-sizing recommendation.
-
-The service uses two Actix workers even though the free instance exposes one vCPU. One worker can be
-occupied by the outer plugin HTTP request while the second services the plugin-to-relayer transport.
-This trades throughput for correctness under the legacy ts-node execution mode.
+OpenZeppelin Relayer `1.7.0`'s legacy ts-node plugin socket does not reliably service nested RPC calls
+under Render Free CPU throttling. The container therefore runs a minimal public adapter that loads
+the same bundled policy-aware handler once and calls the local first-party Relayer HTTP API for
+relayer info, read-only Stellar RPC, and transaction submission. The Relayer remains the signer,
+transaction source, fee payer, and settlement engine. The adapter preserves the existing endpoint
+and bearer API key, and does not replace or relax verifier logic.
 
 ## Security boundary
 
