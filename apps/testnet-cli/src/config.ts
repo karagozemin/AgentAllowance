@@ -20,6 +20,7 @@ export const IDENTITIES = {
   relayer: process.env.STELLAR_RELAYER_IDENTITY ?? "agentallowance-relayer",
   admin: process.env.STELLAR_ADMIN_IDENTITY ?? "agentallowance-admin",
   delegate: process.env.STELLAR_DELEGATE_IDENTITY ?? "agentallowance-delegate",
+  delegate2: process.env.STELLAR_DELEGATE_2_IDENTITY ?? "agentallowance-delegate-2",
   merchant: process.env.STELLAR_MERCHANT_IDENTITY ?? "agentallowance-merchant",
   unapprovedRecipient:
     process.env.STELLAR_UNAPPROVED_RECIPIENT_IDENTITY ?? "agentallowance-unapproved-recipient",

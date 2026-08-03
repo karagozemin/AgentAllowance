@@ -1,0 +1,25 @@
+{
+  "facilitator": "local OpenZeppelin Relayer 1.7.0 policy-aware plugin",
+  "facilitatorVerify": {
+    "isValid": true,
+    "payer": "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX"
+  },
+  "resourceResponse": {
+    "access": "PAID_AND_UNLOCKED",
+    "latestLedger": 3948647
+  },
+  "receipt": {
+    "success": true,
+    "transaction": "db9547660e7adb57f371fcbacacb635c0714e4f205024cdf1192bb00034afa1c",
+    "network": "stellar:testnet",
+    "payer": "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
+    "amount": "100000",
+    "asset": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+    "payTo": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ"
+  },
+  "state": {
+    "treasuryBalanceAtomic": { "before": "4800000", "after": "4700000", "delta": "-100000" },
+    "merchantBalanceAtomic": { "before": "100000200000", "after": "100000300000", "delta": "100000" },
+    "spendingLimitAtomic": { "before": "0", "after": "100000", "delta": "100000" }
+  }
+}

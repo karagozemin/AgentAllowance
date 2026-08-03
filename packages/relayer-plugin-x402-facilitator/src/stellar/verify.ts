@@ -44,6 +44,7 @@ import {
 
 import type { PluginAPI } from "@openzeppelin/relayer-sdk";
 import { resolvePolicyWasmHashes } from "./policy-hashes.js";
+import { resolveRecipientPolicyRule } from "./allowance-rule.js";
 
 type ErrorReason =
   | "invalid_x402_version"
@@ -474,6 +475,16 @@ export async function verify(
         simulationEvents,
         manifest: policyManifest,
         observedWasmHashes,
+        resolveAllowanceRule: (contextRuleId, payer) => relayerInfo.address
+          ? resolveRecipientPolicyRule({
+              relayer,
+              sourceAddress: relayerInfo.address,
+              networkPassphrase,
+              manifest: policyManifest,
+              contextRuleId,
+              payer,
+            })
+          : Promise.resolve(undefined),
       });
       if (!policyDecision.isValid) {
         console.error("Policy-aware validation failed:", policyDecision.detail);

@@ -10,11 +10,18 @@ export type OpenZeppelinSpendingLimitAdapter = {
 
 export type PolicyAdapter = OpenZeppelinSpendingLimitAdapter;
 
+export type RecipientPolicyBinding = {
+  contractId: string;
+  expectedWasmHash: string;
+};
+
 export type FacilitatorPolicyManifest = {
   id: string;
   network: "stellar:testnet" | "stellar:pubnet";
   smartAccount?: string;
   expectedRuleId?: number;
+  allowedRuleIds?: number[];
+  recipientPolicy?: RecipientPolicyBinding;
   adapters: PolicyAdapter[];
 };
 
@@ -23,8 +30,29 @@ export function assertProductionManifest(manifest: FacilitatorPolicyManifest): v
   if (!manifest.smartAccount || !/^C[A-Z2-7]{55}$/.test(manifest.smartAccount)) {
     throw new Error("Policy manifest must pin a Stellar C-account payer");
   }
-  if (!Number.isSafeInteger(manifest.expectedRuleId) || manifest.expectedRuleId! < 0) {
-    throw new Error("Policy manifest must pin a non-negative context rule ID");
+  if (
+    manifest.expectedRuleId !== undefined &&
+    (!Number.isSafeInteger(manifest.expectedRuleId) || manifest.expectedRuleId < 0)
+  ) {
+    throw new Error("Policy manifest expectedRuleId must be a non-negative integer");
+  }
+  if (manifest.allowedRuleIds) {
+    if (
+      manifest.allowedRuleIds.length === 0 ||
+      manifest.allowedRuleIds.some((id) => !Number.isSafeInteger(id) || id < 0) ||
+      new Set(manifest.allowedRuleIds).size !== manifest.allowedRuleIds.length
+    ) {
+      throw new Error("Policy manifest allowedRuleIds must contain unique non-negative integers");
+    }
+  }
+  if (manifest.expectedRuleId === undefined) {
+    const recipient = manifest.recipientPolicy;
+    if (!recipient || !/^C[A-Z2-7]{55}$/.test(recipient.contractId)) {
+      throw new Error("Dynamic policy manifest must pin a recipient-policy contract");
+    }
+    if (!/^[0-9a-f]{64}$/i.test(recipient.expectedWasmHash)) {
+      throw new Error("Dynamic policy manifest must pin the recipient-policy WASM hash");
+    }
   }
   if (manifest.adapters.length !== 1) {
     throw new Error("MVP policy manifest requires exactly one spending-limit adapter");

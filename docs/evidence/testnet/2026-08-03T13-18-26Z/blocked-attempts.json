@@ -1,0 +1,26 @@
+{
+  "stateBefore": {
+    "treasuryBalanceAtomic": "4800000",
+    "spentAtomic": "0"
+  },
+  "attempts": [
+    {
+      "attemptId": "36b2d269-44b1-441e-bf29-11ce7be0a52b",
+      "scenario": "over-limit",
+      "amountAtomic": "1000001",
+      "decision": "BLOCK",
+      "reasonCode": "BUDGET_EXCEEDED"
+    },
+    {
+      "attemptId": "3b9ce229-7b2f-4c21-bda4-107f9aa1e6dd",
+      "scenario": "unapproved-recipient",
+      "amountAtomic": "100000",
+      "decision": "BLOCK",
+      "reasonCode": "RECIPIENT_NOT_ALLOWED"
+    }
+  ],
+  "stateAfter": {
+    "treasuryBalanceAtomic": "4800000",
+    "spentAtomic": "0"
+  }
+}

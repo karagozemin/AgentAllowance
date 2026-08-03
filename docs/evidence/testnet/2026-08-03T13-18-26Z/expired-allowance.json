@@ -1,0 +1,24 @@
+{
+  "network": "stellar:testnet",
+  "observedAt": "2026-08-03T13:33:27.328Z",
+  "allowance": {
+    "allowanceId": "1",
+    "contextRuleId": 1,
+    "validUntilLedger": 3932782,
+    "status": "EXPIRED",
+    "spentAtomic": "200000"
+  },
+  "attempt": {
+    "attemptId": "45a6dfc4-640c-4c8f-b7f0-0194b39c75c1",
+    "amountAtomic": "100000",
+    "decision": "BLOCK",
+    "reasonCode": "ALLOWANCE_EXPIRED",
+    "safeDetail": "valid_until is behind current ledger"
+  },
+  "state": {
+    "treasuryBalanceBeforeAtomic": "4700000",
+    "treasuryBalanceAfterAtomic": "4700000",
+    "spentBeforeAtomic": "200000",
+    "spentAfterAtomic": "200000"
+  }
+}

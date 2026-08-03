@@ -1,0 +1,10 @@
+{
+  "url": "https://agentallowance-facilitator.onrender.com/api/v1/plugins/x402-facilitator/call",
+  "ruleId": 2,
+  "verify": {
+    "isValid": false,
+    "invalidReason": "invalid_exact_stellar_payload_auth_structure"
+  },
+  "classification": "deployed_build_still_pinned_to_rule_1",
+  "settlementAttempted": false
+}

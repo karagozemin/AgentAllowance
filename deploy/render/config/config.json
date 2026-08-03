@@ -53,7 +53,10 @@
                 "id": "agentallowance-testnet-2026-08-01T15-10-40-519Z",
                 "network": "stellar:testnet",
                 "smartAccount": "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
-                "expectedRuleId": 1,
+                "recipientPolicy": {
+                  "contractId": "CAA6UW3PMALFDMMJG3AFJVVFGQT4CCSJT247MHJUHP7CC5IFPXXNKFSL",
+                  "expectedWasmHash": "7bf8ab8f8cefebb2cc7699a9a9d3863213814fa2cbb8e17dbd654797d2a5abb9"
+                },
                 "adapters": [
                   {
                     "kind": "openzeppelin-stellar-accounts/spending-limit@0.7.2",

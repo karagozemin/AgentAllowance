@@ -29,6 +29,12 @@ export type PolicyAwareVerifyResult =
   | { isValid: true; payer: string; delegate: string; contextRuleId: number }
   | { isValid: false; payer?: string; invalidReason: PolicyAwareVerifyReason; detail: string };
 
+export type ObservedAllowanceRule = {
+  contextRuleId: number;
+  token: string;
+  recipient: string;
+};
+
 function mapEventReason(reason: string): PolicyAwareVerifyReason {
   if (reason === "POLICY_EVENT_UNAPPROVED") {
     return "invalid_exact_stellar_payload_policy_event_unapproved";
@@ -52,6 +58,10 @@ export async function verifyPolicyAwarePayment(options: {
   simulationEvents: Array<xdr.DiagnosticEvent | string>;
   manifest: FacilitatorPolicyManifest;
   observedWasmHashes?: Readonly<Record<string, string>>;
+  resolveAllowanceRule?: (
+    contextRuleId: number,
+    payer: string,
+  ) => Promise<ObservedAllowanceRule | undefined>;
 }): Promise<PolicyAwareVerifyResult> {
   const requirements = options.paymentRequirements;
   if (options.x402Version !== 2) {
@@ -70,14 +80,6 @@ export async function verifyPolicyAwarePayment(options: {
       detail: "Amount must be a positive atomic-unit integer",
     };
   }
-  if (options.manifest.expectedRuleId === undefined) {
-    return {
-      isValid: false,
-      invalidReason: "invalid_exact_stellar_payload_policy_manifest_mismatch",
-      detail: "Delegated profile requires an expected rule ID",
-    };
-  }
-
   const payer = options.manifest.smartAccount;
   if (!payer) {
     return {
@@ -109,9 +111,57 @@ export async function verifyPolicyAwarePayment(options: {
     };
   }
 
+  if (
+    options.manifest.allowedRuleIds &&
+    !options.manifest.allowedRuleIds.includes(auth.contextRuleId)
+  ) {
+    return {
+      isValid: false,
+      payer,
+      invalidReason: "invalid_exact_stellar_payload_policy_manifest_mismatch",
+      detail: `Signed rule ${auth.contextRuleId} is not allowed by the manifest`,
+    };
+  }
+
+  if (options.manifest.expectedRuleId === undefined) {
+    const recipientPolicy = options.manifest.recipientPolicy;
+    const observedHash = recipientPolicy
+      ? options.observedWasmHashes?.[recipientPolicy.contractId]
+      : undefined;
+    if (
+      !recipientPolicy ||
+      !observedHash ||
+      observedHash.toLowerCase() !== recipientPolicy.expectedWasmHash.toLowerCase()
+    ) {
+      return {
+        isValid: false,
+        payer,
+        invalidReason: "invalid_exact_stellar_payload_policy_manifest_mismatch",
+        detail: "Recipient-policy code identity is not manifest-pinned",
+      };
+    }
+
+    const observedRule = await options.resolveAllowanceRule?.(auth.contextRuleId, payer);
+    if (
+      !observedRule ||
+      observedRule.contextRuleId !== auth.contextRuleId ||
+      observedRule.token !== requirements.asset ||
+      observedRule.recipient !== requirements.payTo
+    ) {
+      return {
+        isValid: false,
+        payer,
+        invalidReason: "invalid_exact_stellar_payload_policy_manifest_mismatch",
+        detail: "Selected rule is not installed with the pinned recipient policy and payment terms",
+      };
+    }
+  }
+
+  const eventExpected = { ...expected, contextRuleId: auth.contextRuleId };
+
   const events = validatePolicyAwareSimulationEvents({
     diagnosticEvents: options.simulationEvents,
-    expected,
+    expected: eventExpected,
     manifest: options.manifest,
     observedWasmHashes: options.observedWasmHashes,
   });
