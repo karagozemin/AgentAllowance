@@ -1,0 +1,82 @@
+{
+  "network": "stellar:testnet",
+  "asset": {
+    "code": "USDC",
+    "decimals": 7,
+    "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+  },
+  "treasury": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+  "merchant": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+  "allowanceRuleId": 1,
+  "attempts": [
+    {
+      "attemptId": "3e468b9b-1fb8-4c40-b39a-adf34fc73839",
+      "scenario": "over-limit",
+      "amountAtomic": "1000001",
+      "state": "BLOCKED",
+      "decision": "BLOCK",
+      "reasonCode": "BUDGET_EXCEEDED",
+      "transaction": null
+    },
+    {
+      "attemptId": "5a6b196f-0203-429e-a85b-7f4e7575136a",
+      "scenario": "unapproved-recipient",
+      "amountAtomic": "100000",
+      "payTo": "GAQNJIU3EXRGIGKORCPNRPK46UINEKACCEKOYOIRF26ZJMNVEPRTCMOM",
+      "state": "BLOCKED",
+      "decision": "BLOCK",
+      "reasonCode": "RECIPIENT_NOT_ALLOWED",
+      "transaction": null
+    },
+    {
+      "attemptId": "ca648475-62ef-487b-8e83-268f28b99f16",
+      "scenario": "success",
+      "amountAtomic": "100000",
+      "payTo": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "state": "UNLOCKED",
+      "decision": "ALLOW",
+      "reasonCode": null,
+      "transaction": "ebfdc51dc534bb501b555a3b9541916361f2eb32573254992710acfca5125950"
+    }
+  ],
+  "protectedResource": {
+    "access": "PAID_AND_UNLOCKED",
+    "network": "stellar:testnet",
+    "latestLedger": 3953945,
+    "treasury": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+    "transaction": "ebfdc51dc534bb501b555a3b9541916361f2eb32573254992710acfca5125950",
+    "generatedAt": "2026-08-03T20:41:03.096Z"
+  },
+  "receipt": {
+    "success": true,
+    "network": "stellar:testnet",
+    "payer": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+    "amount": "100000",
+    "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "payTo": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+    "transaction": "ebfdc51dc534bb501b555a3b9541916361f2eb32573254992710acfca5125950"
+  },
+  "state": {
+    "treasuryBalanceAtomic": {
+      "before": "4900000",
+      "after": "4800000",
+      "delta": "-100000"
+    },
+    "merchantBalanceAtomic": {
+      "before": "100000",
+      "after": "200000",
+      "delta": "100000"
+    },
+    "spendingLimit": {
+      "before": "100000",
+      "after": "200000",
+      "delta": "100000",
+      "settlementLedger": 3953945
+    },
+    "recipientPolicy": {
+      "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "unchanged": true
+    }
+  }
+}
