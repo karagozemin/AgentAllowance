@@ -112,7 +112,7 @@ async function ownerCookie(app: ReturnType<typeof createConsoleApp>, wallet = ow
     body: JSON.stringify({
       nonce: challenge.nonce,
       address: wallet.publicKey(),
-      signature: wallet.sign(Buffer.from(challenge.message)).toString("base64"),
+      signature: wallet.signMessage(challenge.message).toString("base64"),
     }),
   });
   expect(response.status).toBe(200);
@@ -249,11 +249,29 @@ describe("console API", () => {
       body: JSON.stringify({
         nonce: challenge.nonce,
         address: other.publicKey(),
-        signature: other.sign(Buffer.from(challenge.message)).toString("base64"),
+        signature: other.signMessage(challenge.message).toString("base64"),
       }),
     });
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "CHALLENGE_WALLET_MISMATCH" });
+  });
+
+  test("requires canonical SEP-53 wallet signatures", async () => {
+    const { app } = setup();
+    const challenge = await (await app.request(`/api/owner/challenge?address=${owner.publicKey()}`)).json() as {
+      nonce: string; message: string;
+    };
+    const response = await app.request("/api/owner/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nonce: challenge.nonce,
+        address: owner.publicKey(),
+        signature: owner.sign(Buffer.from(challenge.message)).toString("base64"),
+      }),
+    });
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "INVALID_WALLET_SIGNATURE" });
   });
 
   test("runs only supported demo scenarios and normalizes policy blocks", async () => {
