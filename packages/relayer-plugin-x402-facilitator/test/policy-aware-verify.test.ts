@@ -8,7 +8,7 @@ import * as policyHashes from "../src/stellar/policy-hashes.js";
 import type { NetworkConfig, VerifyRequest } from "../src/types.js";
 
 const runDirectory = fileURLToPath(
-  new URL("../../../proofs/stellar-x402-smart-account/artifacts/runs/2026-07-31T21-31-07-556Z/", import.meta.url),
+  new URL("../../../test/fixtures/stellar-policy-payment/", import.meta.url),
 );
 const deployment = JSON.parse(readFileSync(`${runDirectory}/deployment.json`, "utf8")) as {
   token: string;
