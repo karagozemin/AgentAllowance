@@ -27,9 +27,9 @@ transactions remain on Testnet. This is an explicit demo limitation, not product
   smart-account payer, merchant, delegated signer, or an address-auth entry.
 - The static config accepts only the pinned Testnet asset and manifest-pinned
   `spending_limit_enforced` event. Recipient-policy payment events remain unsupported.
-- The console exposes its UI, `/health`, and `/api/overview` publicly. `/operator` and every endpoint
-  that creates, revokes, reconciles, or pays require server-side HTTP Basic Auth over Render HTTPS;
-  credentials are never bundled into React.
+- The console exposes its UI, `/operator`, `/health`, and `/api/overview` publicly. `/operator` uses a
+  Freighter-signed treasury-owner challenge and a short-lived HttpOnly session. Basic Auth remains an
+  emergency API fallback; credentials are never bundled into React.
 - The demo API has no admin signer. The console alone receives admin, transaction-source, and
   delegated-signer secrets.
 
@@ -181,8 +181,8 @@ curl --fail --show-error --user 'operator:<CONSOLE_AUTH_PASSWORD>' \
   https://agentallowance-console.onrender.com/operator
 ```
 
-The public root and overview must return `200`; anonymous `/operator` must return `401`. Open the
-console URL, select **Operator login**, and enter the same credentials. With an empty ephemeral
+The public root, overview, and anonymous `/operator` must return `200`. Open the console URL, select
+**Operator login**, connect the configured admin wallet in Freighter, and sign the challenge. With an empty ephemeral
 database, create a fresh allowance before running a scenario. Confirm its delegated signer,
 recipient, amount, rolling window, and expiry in the form. `Over limit` and `Unapproved recipient`
 must be rejected without settlement. `Approved payment` performs a real Testnet `/verify` and
