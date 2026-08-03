@@ -111,6 +111,11 @@ should be omitted from the primary wallet-owner deployment.
 disable sponsored funding. `OWNER_TREASURY_VERSION` must change only when deliberately moving owners
 to a new deterministic deployment profile.
 
+The Blueprint pins `STELLAR_TOKEN_CONTRACT` to the official Testnet USDC SAC
+`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, matching the facilitator asset
+allowlist. Changing the asset produces a different deterministic owner treasury; reconnect and run
+onboarding instead of reusing allowances created for another token contract.
+
 ## 3. Create or update the Blueprint
 
 1. Push `render.yaml`, `deploy/render/`, and `deploy/apps/` to the GitHub branch Render will deploy.
