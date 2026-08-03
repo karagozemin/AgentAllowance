@@ -60,6 +60,10 @@ function setup() {
   const revoke = vi.fn(async () => ({ ...current, status: "REVOKED" as const }));
   const payFetch = vi.fn(async () => Response.json({ access: "PAID_AND_UNLOCKED" }));
   const reconcile = vi.fn(async () => attempt());
+  const prepareCreate = vi.fn(async () => ({ operationId: "op-create", authEntryXdr: "unsigned" }));
+  const submitCreate = vi.fn(async () => current);
+  const prepareRevoke = vi.fn(async () => ({ operationId: "op-revoke", authEntryXdr: "unsigned" }));
+  const submitRevoke = vi.fn(async () => ({ ...current, status: "REVOKED" as const }));
   const agentAllowance = {
     allowances: {
       create,
@@ -79,9 +83,11 @@ function setup() {
     availableSigners: [signer],
     demoServiceUrl: "http://demo.test",
     getLatestLedger: async () => 1500,
+    publicDemo: { allowanceId: "2", successCooldownMs: 60_000 },
+    walletAdmin: { prepareCreate, submitCreate, prepareRevoke, submitRevoke },
     auth: { username: "operator", password: "test-password" },
   });
-  return { app, create, revoke, payFetch, reconcile };
+  return { app, create, revoke, payFetch, reconcile, prepareCreate, submitCreate };
 }
 
 describe("console API", () => {
@@ -125,6 +131,8 @@ describe("console API", () => {
     expect(JSON.parse(raw)).toMatchObject({
       treasury,
       asset: token,
+      assetCode: "XLM",
+      assetDecimals: 7,
       balanceAtomic: "1200000",
       balanceDisplay: "0.12",
       currentLedger: 1500,
@@ -164,6 +172,28 @@ describe("console API", () => {
     expect(revoke).not.toHaveBeenCalled();
   });
 
+  test("keeps wallet preparation and submission behind authenticated owner state", async () => {
+    const { app, prepareCreate, submitCreate } = setup();
+    expect((await app.request("/api/owner/allowances/prepare", { method: "POST" })).status).toBe(401);
+    const prepared = await app.request("/api/owner/allowances/prepare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: authorization },
+      body: JSON.stringify({
+        label: "data-agent", delegatedSigner: signer, maxSpendAtomic: "250000",
+        windowSeconds: 3600, recipient: merchant, expiresInSeconds: 7200,
+      }),
+    });
+    expect(prepared.status).toBe(200);
+    expect(prepareCreate).toHaveBeenCalled();
+    const submitted = await app.request("/api/owner/allowances/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: authorization },
+      body: JSON.stringify({ operationId: "op-create", signedAuthEntryXdr: "signed" }),
+    });
+    expect(submitted.status).toBe(201);
+    expect(submitCreate).toHaveBeenCalledWith("op-create", "signed");
+  });
+
   test("runs only supported demo scenarios and normalizes policy blocks", async () => {
     const { app, payFetch } = setup();
     payFetch.mockRejectedValueOnce(new AgentAllowanceError("RECIPIENT_NOT_ALLOWED", { attemptId: "attempt-2" }));
@@ -185,6 +215,23 @@ describe("console API", () => {
       body: JSON.stringify({ allowanceId: "2", scenario: "arbitrary" }),
     });
     expect(invalid.status).toBe(400);
+  });
+
+  test("runs only fixed public demo scenarios and rate-limits successful settlement", async () => {
+    const { app, payFetch } = setup();
+    expect((await app.request("/api/public-demo/run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: "success" }),
+    })).status).toBe(200);
+    expect((await app.request("/api/public-demo/run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: "success" }),
+    })).status).toBe(429);
+    expect((await app.request("/api/public-demo/run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: "arbitrary" }),
+    })).status).toBe(400);
+    expect(payFetch).toHaveBeenCalledTimes(1);
   });
 
   test("exposes reconciliation for uncertain attempts", async () => {

@@ -10,6 +10,8 @@ async function mockOverview(page: Page): Promise<void> {
       network: "stellar:testnet",
       treasury: "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
       asset: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+      assetCode: "XLM",
+      assetDecimals: 7,
       balanceAtomic: "4700000",
       balanceDisplay: "0.47",
       currentLedger: 3948647,

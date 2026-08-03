@@ -29,7 +29,7 @@ flowchart LR
     Relayer["Relayer G-account\nSource + fee payer"]
 
     Owner -->|signed login challenge| Console
-    Console -->|configured admin signer\nrule operations| Treasury
+    Console -->|wallet-signed admin auth\nfee-payer submission| Treasury
     Agent -->|two-entry Soroban auth| Merchant
     Merchant -->|verify / settle| Facilitator
     Facilitator -->|read rules and code hashes| Policies
@@ -66,12 +66,13 @@ server issues a one-time 120-second challenge; only a valid Ed25519 signature fr
 admin address creates the 15-minute HttpOnly owner session used by mutation endpoints. Challenges are
 single-use and both challenges and sessions are memory-bounded by expiry.
 
-For the current Testnet demo, owner authentication and Soroban admin transaction signing are separate
-boundaries: after authentication, the console server uses its configured admin signer to authorize
-`add_context_rule` or `remove_context_rule`, and its fee-payer key signs the envelope. A production
-custody milestone will return the prepared admin authorization entry to Freighter and accept only the
-wallet-signed entry before submission. Autonomous delegated payment signing is already independent of
-this admin path and must remain server-side.
+Create and revoke are two-phase operations. The server records the exact contract invocation and
+returns an unsigned delegated admin auth entry. Freighter signs that entry; the server then requires
+the configured admin address and unchanged nonce, expiry, invocation and auth tree before running
+enforcing simulation. Only the relayer/fee-payer envelope signature remains server-side. The legacy
+server-admin signer is retained as an explicit Testnet emergency fallback and is not used by the
+wallet-owner endpoints. Autonomous delegated payment signing is independent of this admin path and
+remains server-side by design.
 
 ## Contract architecture
 
@@ -222,7 +223,9 @@ flowchart TD
 The Testnet deployment uses three coordinated Render services: the OpenZeppelin Relayer with the
 policy-aware plugin, the merchant demo API, and the console. Redis backs the Relayer queue. The
 console and merchant currently use single-instance SQLite and Render's ephemeral filesystem; on-chain
-state remains persistent, but application indexes may be reconstructed after a restart.
+state remains persistent, but application indexes may be reconstructed after a restart. Local default
+SQLite filenames are namespaced by treasury C-account so evidence from separate deployments cannot be
+silently merged; explicit hosted database paths remain operator-controlled.
 
 Production requires a shared transactional database, durable evidence storage, managed key custody
 or HSM signing, rate limiting, observability, disaster recovery, and independent audits of contracts,
@@ -230,9 +233,10 @@ facilitator policy, and operational controls.
 
 ## MVP and excluded scope
 
-The proven MVP uses Stellar Testnet's native XLM SAC, one recipient per allowance, one delegated
+The proven MVP uses the official Stellar Testnet USDC SAC, one recipient per allowance, one delegated
 signer per allowance, rolling spending limits, ledger expiry, x402 exact payments, and the
-policy-aware facilitator. USDC deployment validation, multi-asset rules, MPP, threshold admin,
+policy-aware facilitator. The earlier native XLM runs remain compatibility evidence. Multi-asset
+rules, MPP, threshold admin,
 `recipient_policy_enforced`, public SDK publication, and production custody are future work.
 
 For exact adversarial conditions and operational assumptions, continue with the

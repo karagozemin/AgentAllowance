@@ -141,6 +141,28 @@ importers:
         specifier: 4.0.15
         version: 4.0.15(@types/node@24.10.1)(tsx@4.20.6)
 
+  apps/x402-sdk-example:
+    dependencies:
+      '@agentallowance/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@stellar/stellar-sdk':
+        specifier: 16.2.0
+        version: 16.2.0
+      dotenv:
+        specifier: 16.6.1
+        version: 16.6.1
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/facilitator-policy:
     dependencies:
       '@agentallowance/stellar-smart-account-auth':

@@ -1,12 +1,23 @@
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { Keypair, rpc } from "@stellar/stellar-sdk";
-import { AgentAllowance, SqliteEvidenceStore, type AllowanceRecord } from "@agentallowance/sdk";
+import { Asset, Keypair, Networks, rpc } from "@stellar/stellar-sdk";
+import {
+  AgentAllowance,
+  SqliteEvidenceStore,
+  prepareCreateContextRuleAuthorization,
+  prepareRevokeContextRuleAuthorization,
+  submitWalletAdminCall,
+  type AdminConfig,
+  type AllowanceCreateInput,
+  type AllowanceRecord,
+  type PreparedWalletAdminCall,
+} from "@agentallowance/sdk";
 import { createConsoleApp } from "./app.js";
 
 const workspaceRoot = fileURLToPath(new URL("../../..", import.meta.url));
@@ -16,6 +27,8 @@ dotenv.config({ path: path.join(workspaceRoot, ".env") });
 type Deployment = {
   admin: string;
   token: string;
+  assetCode?: string;
+  assetDecimals?: number;
   smartAccount: string;
   spendingPolicy: string;
   recipientPolicy: string;
@@ -86,9 +99,11 @@ function keypairFromSecret(name: string): Keypair {
 const hosted = process.env.NODE_ENV === "production" ||
   Boolean(process.env.RENDER_SERVICE_ID) ||
   Boolean(process.env.TREASURY_CONTRACT);
-const admin = hosted || process.env.STELLAR_ADMIN_SECRET
-  ? keypairFromSecret("STELLAR_ADMIN_SECRET")
+const adminSigner = hosted
+  ? (process.env.STELLAR_ADMIN_SECRET?.trim() ? keypairFromSecret("STELLAR_ADMIN_SECRET") : undefined)
   : Keypair.fromSecret(stellarSecret(process.env.STELLAR_ADMIN_IDENTITY ?? "agentallowance-admin"));
+const adminAddress = process.env.STELLAR_ADMIN_ADDRESS?.trim() || adminSigner?.publicKey();
+if (!adminAddress) throw new Error("STELLAR_ADMIN_ADDRESS is required when no server admin signer is configured");
 const source = hosted || process.env.STELLAR_FEE_PAYER_SECRET
   ? keypairFromSecret("STELLAR_FEE_PAYER_SECRET")
   : Keypair.fromSecret(stellarSecret(process.env.STELLAR_FEE_PAYER_IDENTITY ?? "agentallowance-fee-payer"));
@@ -105,8 +120,10 @@ const delegates = hosted || process.env.STELLAR_DELEGATE_SECRETS
 if (delegates.length === 0) throw new Error("At least one delegated signer is required");
 
 const deployment: Deployment = hosted ? {
-  admin: admin.publicKey(),
+  admin: adminAddress,
   token: required("STELLAR_TOKEN_CONTRACT"),
+  assetCode: process.env.STELLAR_ASSET_CODE?.trim() || "XLM",
+  assetDecimals: process.env.STELLAR_ASSET_DECIMALS ? requiredInteger("STELLAR_ASSET_DECIMALS") : 7,
   smartAccount: required("TREASURY_CONTRACT"),
   spendingPolicy: required("SPENDING_POLICY_CONTRACT"),
   recipientPolicy: required("RECIPIENT_POLICY_CONTRACT"),
@@ -123,14 +140,32 @@ const deployment: Deployment = hosted ? {
   spendingLimit: process.env.INITIAL_ALLOWANCE_RULE_ID ? required("SPENDING_LIMIT") : undefined,
   periodLedgers: process.env.INITIAL_ALLOWANCE_RULE_ID ? requiredInteger("PERIOD_LEDGERS") : undefined,
 } : latestDeployment();
+deployment.assetCode ??= deployment.token === Asset.native().contractId(Networks.TESTNET) ? "XLM" : "USDC";
+deployment.assetDecimals ??= 7;
 
-if (deployment.admin !== admin.publicKey()) throw new Error("Configured admin signer does not match deployment");
+if (deployment.admin !== adminAddress) throw new Error("Configured admin address does not match deployment");
+if (adminSigner && deployment.admin !== adminSigner.publicKey()) throw new Error("Configured admin signer does not match deployment");
 if (deployment.feePayer !== source.publicKey()) throw new Error("Configured fee payer does not match deployment");
 if (!delegates.some((delegate) => delegate.publicKey() === deployment.delegate)) {
   throw new Error("INITIAL_DELEGATED_SIGNER does not match a configured delegated signer secret");
 }
-const store = new SqliteEvidenceStore(process.env.DATABASE_URL ?? path.join(workspaceRoot, "data/agentallowance.db"));
+const store = new SqliteEvidenceStore(
+  process.env.DATABASE_URL ?? path.join(workspaceRoot, "data", `agentallowance-${deployment.smartAccount}.db`),
+);
 const configuredFacilitatorUrl = facilitatorUrl();
+const networkPassphrase = "Test SDF Network ; September 2015";
+const adminConfig: AdminConfig = {
+  rpcUrl: process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org",
+  horizonUrl: process.env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org",
+  networkPassphrase,
+  treasuryContract: deployment.smartAccount,
+  assetContract: deployment.token,
+  spendingPolicy: deployment.spendingPolicy,
+  recipientPolicy: deployment.recipientPolicy,
+  adminAddress,
+  adminSigner,
+  transactionSource: source,
+};
 
 const agentAllowance = new AgentAllowance({
   network: "stellar:testnet",
@@ -142,7 +177,8 @@ const agentAllowance = new AgentAllowance({
   facilitatorUrl: configuredFacilitatorUrl,
   facilitatorApiKey: process.env.X402_FACILITATOR_API_KEY,
   transactionSource: source,
-  adminSigner: admin,
+  adminAddress,
+  adminSigner,
   delegatedSigners: Object.fromEntries(delegates.map((delegate) => [delegate.publicKey(), delegate])),
   store,
 });
@@ -174,6 +210,24 @@ if (deployment.allowanceRuleId !== undefined &&
 }
 
 const rpcServer = new rpc.Server(process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org");
+type PendingAdminOperation = {
+  kind: "create" | "revoke";
+  prepared: PreparedWalletAdminCall;
+  expiresAt: number;
+  input?: AllowanceCreateInput & { windowLedgers: number; validUntilLedger: number };
+  allowanceId?: string;
+};
+const pendingAdminOperations = new Map<string, PendingAdminOperation>();
+
+function takePending(operationId: string, kind: PendingAdminOperation["kind"]): PendingAdminOperation {
+  const pending = pendingAdminOperations.get(operationId);
+  pendingAdminOperations.delete(operationId);
+  if (!pending || pending.kind !== kind || pending.expiresAt < Date.now()) {
+    throw new Error("Prepared wallet authorization is missing or expired");
+  }
+  return pending;
+}
+
 const app = createConsoleApp({
   agentAllowance,
   deployment,
@@ -181,6 +235,69 @@ const app = createConsoleApp({
   availableSigners: delegates.map((delegate) => delegate.publicKey()),
   demoServiceUrl: serviceUrl(process.env.DEMO_SERVICE_URL ?? "http://127.0.0.1:3001"),
   getLatestLedger: async () => Number((await rpcServer.getLatestLedger()).sequence),
+  publicDemo: {
+    allowanceId: process.env.PUBLIC_DEMO_ALLOWANCE_ID?.trim() || (deployment.allowanceRuleId ? String(deployment.allowanceRuleId) : undefined),
+    successCooldownMs: Number(process.env.PUBLIC_DEMO_SUCCESS_COOLDOWN_MS ?? "3600000"),
+  },
+  walletAdmin: {
+    prepareCreate: async (input) => {
+      if (!input.label.trim() || input.allowedRecipients.length !== 1) throw new Error("One label and recipient are required");
+      if (!delegates.some((value) => value.publicKey() === input.delegatedSigner)) throw new Error("Delegated signer is not configured");
+      if (!/^\d+$/u.test(input.maxSpendAtomic) || BigInt(input.maxSpendAtomic) <= 0n) throw new Error("Budget must be positive atomic units");
+      const latest = Number((await rpcServer.getLatestLedger()).sequence);
+      const windowLedgers = Math.ceil(input.windowSeconds / 5);
+      const validUntilLedger = latest + Math.ceil(input.expiresInSeconds / 5);
+      const prepared = await prepareCreateContextRuleAuthorization(adminConfig, {
+        label: input.label,
+        delegatedSigner: input.delegatedSigner,
+        maxSpendAtomic: BigInt(input.maxSpendAtomic),
+        windowLedgers,
+        recipient: input.allowedRecipients[0]!,
+        validUntilLedger,
+      });
+      const operationId = randomUUID();
+      pendingAdminOperations.set(operationId, {
+        kind: "create", prepared, expiresAt: Date.now() + 60_000,
+        input: { ...input, windowLedgers, validUntilLedger },
+      });
+      return { operationId, authEntryXdr: prepared.unsignedAdminEntryXdr };
+    },
+    submitCreate: async (operationId, signedAuthEntryXdr) => {
+      const pending = takePending(operationId, "create");
+      const result = await submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr);
+      const context = result.retval as { id?: unknown };
+      if (!Number.isInteger(context.id) || !pending.input) throw new Error("Created rule did not return a context rule ID");
+      const timestamp = new Date().toISOString();
+      const record: AllowanceRecord = {
+        allowanceId: String(context.id), label: pending.input.label, network: "stellar:testnet",
+        treasuryContract: deployment.smartAccount, assetContract: deployment.token,
+        delegatedSigner: pending.input.delegatedSigner, maxSpendAtomic: pending.input.maxSpendAtomic,
+        spentAtomic: "0", windowLedgers: pending.input.windowLedgers,
+        allowedRecipients: [...pending.input.allowedRecipients], validUntilLedger: pending.input.validUntilLedger,
+        contextRuleId: Number(context.id), createTxHash: result.transactionHash, status: "ACTIVE",
+        createdAt: timestamp, updatedAt: timestamp,
+      };
+      store.putAllowance(record);
+      return record;
+    },
+    prepareRevoke: async (allowanceId) => {
+      const record = store.getAllowance(allowanceId);
+      if (!record) throw new Error("Allowance not found");
+      const prepared = await prepareRevokeContextRuleAuthorization(adminConfig, record.contextRuleId);
+      const operationId = randomUUID();
+      pendingAdminOperations.set(operationId, { kind: "revoke", prepared, allowanceId, expiresAt: Date.now() + 60_000 });
+      return { operationId, authEntryXdr: prepared.unsignedAdminEntryXdr };
+    },
+    submitRevoke: async (operationId, signedAuthEntryXdr) => {
+      const pending = takePending(operationId, "revoke");
+      const record = pending.allowanceId ? store.getAllowance(pending.allowanceId) : undefined;
+      if (!record) throw new Error("Allowance not found");
+      const result = await submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr);
+      const updated: AllowanceRecord = { ...record, status: "REVOKED", revokeTxHash: result.transactionHash, updatedAt: new Date().toISOString() };
+      store.putAllowance(updated);
+      return updated;
+    },
+  },
   auth: {
     username: required("CONSOLE_AUTH_USERNAME"),
     password: required("CONSOLE_AUTH_PASSWORD"),

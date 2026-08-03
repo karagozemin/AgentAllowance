@@ -4,6 +4,7 @@ import {
   AgentAllowanceError,
   type AgentAllowance,
   type AllowanceCreateInput,
+  type AllowanceRecord,
 } from "@agentallowance/sdk";
 import { atomicToDecimal } from "@agentallowance/shared";
 import { Keypair } from "@stellar/stellar-sdk";
@@ -11,6 +12,8 @@ import { Keypair } from "@stellar/stellar-sdk";
 export type ConsoleDeployment = {
   admin?: string;
   token: string;
+  assetCode?: string;
+  assetDecimals?: number;
   smartAccount: string;
   merchant: string;
 };
@@ -22,6 +25,16 @@ export type ConsoleApiConfig = {
   availableSigners: string[];
   demoServiceUrl: string;
   getLatestLedger: () => Promise<number>;
+  publicDemo?: {
+    allowanceId?: string;
+    successCooldownMs?: number;
+  };
+  walletAdmin?: {
+    prepareCreate: (input: AllowanceCreateInput) => Promise<{ operationId: string; authEntryXdr: string }>;
+    submitCreate: (operationId: string, signedAuthEntryXdr: string) => Promise<AllowanceRecord>;
+    prepareRevoke: (allowanceId: string) => Promise<{ operationId: string; authEntryXdr: string }>;
+    submitRevoke: (operationId: string, signedAuthEntryXdr: string) => Promise<AllowanceRecord>;
+  };
   auth: {
     username: string;
     password: string;
@@ -50,6 +63,7 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
   const app = new Hono();
   const challenges = new Map<string, { message: string; expiresAt: number }>();
   const sessions = new Map<string, number>();
+  const publicSuccesses = new Map<string, number>();
 
   app.use("*", async (context, next) => {
     context.header("X-Content-Type-Options", "nosniff");
@@ -113,6 +127,7 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
 
   app.use("/api/allowances", requireOperator);
   app.use("/api/allowances/*", requireOperator);
+  app.use("/api/owner/allowances/*", requireOperator);
   app.use("/api/demo/*", requireOperator);
   app.use("/api/attempts/*", requireOperator);
 
@@ -138,6 +153,8 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
       network: "stellar:testnet",
       treasury: config.deployment.smartAccount,
       asset: config.deployment.token,
+      assetCode: config.deployment.assetCode ?? "XLM",
+      assetDecimals: config.deployment.assetDecimals ?? 7,
       balanceAtomic: balance,
       balanceDisplay: atomicToDecimal(balance),
       currentLedger,
@@ -148,6 +165,35 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
       attempts: config.agentAllowance.listAttempts(100),
       refreshedAt: new Date().toISOString(),
     });
+  });
+
+  app.post("/api/public-demo/run", async (context) => {
+    const body = await context.req.json<{ scenario: "success" | "over-limit" | "unapproved-recipient" }>();
+    if (!config.publicDemo || !["success", "over-limit", "unapproved-recipient"].includes(body.scenario)) {
+      return context.json({ error: "PUBLIC_DEMO_UNAVAILABLE" }, 400);
+    }
+    const allowance = config.publicDemo.allowanceId
+      ? await config.agentAllowance.allowances.get(config.publicDemo.allowanceId)
+      : (await config.agentAllowance.allowances.list()).find((item) => item.status === "ACTIVE");
+    if (!allowance) return context.json({ error: "NO_ACTIVE_DEMO_ALLOWANCE" }, 409);
+    if (body.scenario === "success") {
+      const client = context.req.header("CF-Connecting-IP") ?? context.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? "local";
+      const last = publicSuccesses.get(client) ?? 0;
+      const cooldown = config.publicDemo.successCooldownMs ?? 3_600_000;
+      if (Date.now() - last < cooldown) return context.json({ error: "PUBLIC_DEMO_COOLDOWN" }, 429);
+      publicSuccesses.set(client, Date.now());
+    }
+    try {
+      const url = new URL("/premium", config.demoServiceUrl);
+      url.searchParams.set("scenario", body.scenario);
+      const response = await config.agentAllowance.fetch(url.toString(), { allowanceId: allowance.allowanceId });
+      return context.json({ ok: true, resource: await response.json() });
+    } catch (error) {
+      if (error instanceof AgentAllowanceError) {
+        return context.json({ ok: false, reason: error.code, attemptId: error.attemptId }, 400);
+      }
+      throw error;
+    }
   });
 
   app.post("/api/allowances", async (context) => {
@@ -177,6 +223,39 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
       return context.json({ error: "CONFIRMATION_MISMATCH" }, 400);
     }
     return context.json(await config.agentAllowance.allowances.revoke(current.allowanceId));
+  });
+
+  app.post("/api/owner/allowances/prepare", async (context) => {
+    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
+    const body = await context.req.json<{
+      label: string; delegatedSigner: string; maxSpendAtomic: string;
+      windowSeconds: number; recipient: string; expiresInSeconds: number;
+    }>();
+    return context.json(await config.walletAdmin.prepareCreate({
+      label: body.label,
+      delegatedSigner: body.delegatedSigner,
+      maxSpendAtomic: body.maxSpendAtomic,
+      windowSeconds: body.windowSeconds,
+      allowedRecipients: [body.recipient],
+      expiresInSeconds: body.expiresInSeconds,
+    }));
+  });
+
+  app.post("/api/owner/allowances/submit", async (context) => {
+    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
+    const body = await context.req.json<{ operationId: string; signedAuthEntryXdr: string }>();
+    return context.json(await config.walletAdmin.submitCreate(body.operationId, body.signedAuthEntryXdr), 201);
+  });
+
+  app.post("/api/owner/allowances/:id/revoke/prepare", async (context) => {
+    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
+    return context.json(await config.walletAdmin.prepareRevoke(context.req.param("id")));
+  });
+
+  app.post("/api/owner/allowances/revoke/submit", async (context) => {
+    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
+    const body = await context.req.json<{ operationId: string; signedAuthEntryXdr: string }>();
+    return context.json(await config.walletAdmin.submitRevoke(body.operationId, body.signedAuthEntryXdr));
   });
 
   app.post("/api/demo/run", async (context) => {

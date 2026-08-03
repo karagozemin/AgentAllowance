@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import type { AllowanceRecord, PaymentAttempt } from "@agentallowance/shared";
 import { api, type Overview } from "./api.js";
-import { getAddress, signMessage } from "@stellar/freighter-api";
+import { getAddress, signAuthEntry, signMessage } from "@stellar/freighter-api";
+import { Networks } from "@stellar/stellar-sdk";
 
 type View = "overview" | "command";
 
@@ -95,6 +96,26 @@ export function App() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Wallet login failed"); }
     finally { setOwnerBusy(false); }
   };
+  const signPreparedEntry = async (authEntryXdr: string): Promise<string> => {
+    if (!ownerAddress) throw new Error("Connect the treasury admin wallet first");
+    const result = await signAuthEntry(authEntryXdr, {
+      address: ownerAddress,
+      networkPassphrase: Networks.TESTNET,
+    });
+    if (result.error || !result.signedAuthEntry) throw new Error(result.error?.message ?? "Wallet authorization was rejected");
+    if (result.signerAddress !== ownerAddress) throw new Error("Freighter signed with a different address");
+    return result.signedAuthEntry;
+  };
+  const createWithWallet = async (form: Parameters<typeof api.prepareWalletCreate>[0]) => {
+    const prepared = await api.prepareWalletCreate(form);
+    const signedAuthEntryXdr = await signPreparedEntry(prepared.authEntryXdr);
+    return api.submitWalletCreate({ operationId: prepared.operationId, signedAuthEntryXdr });
+  };
+  const revokeWithWallet = async (allowance: AllowanceRecord) => {
+    const prepared = await api.prepareWalletRevoke(allowance.allowanceId);
+    const signedAuthEntryXdr = await signPreparedEntry(prepared.authEntryXdr);
+    return api.submitWalletRevoke({ operationId: prepared.operationId, signedAuthEntryXdr });
+  };
 
   const refresh = async () => {
     setError(undefined);
@@ -119,16 +140,12 @@ export function App() {
   }), [overview]);
 
   const run = async (scenario: "success" | "over-limit" | "unapproved-recipient") => {
-    if (!ownerAddress) {
-      await connectOwner();
-      return;
-    }
     if (!selected) return;
     setBusy(scenario);
     setError(undefined);
     setResult(undefined);
     try {
-      const response = await api.run(selected.allowanceId, scenario);
+      const response = await api.runPublic(scenario);
       setResult(response.ok ? "PAID_AND_UNLOCKED" : response.reason ?? "POLICY_BLOCKED");
     } catch (reason) {
       setResult(reason instanceof Error ? reason.message : "POLICY_BLOCKED");
@@ -187,7 +204,7 @@ export function App() {
               }
               if (!window.confirm(`Revoke allowance #${allowance.allowanceId} for ${allowance.delegatedSigner}?`)) return;
               setBusy(`revoke-${allowance.allowanceId}`);
-              try { await api.revoke(allowance); } catch (reason) {
+              try { await revokeWithWallet(allowance); } catch (reason) {
                 setError(reason instanceof Error ? reason.message : "Revoke failed");
               } finally { setBusy(undefined); await refresh(); }
             }}
@@ -210,6 +227,7 @@ export function App() {
           overview={overview}
           onClose={() => setCreateOpen(false)}
           onCreated={async () => { setCreateOpen(false); await refresh(); }}
+          createAllowance={createWithWallet}
         />
       )}
     </div>
@@ -233,9 +251,9 @@ function OverviewView({ overview, totals, selectedId, onSelect, onRevoke, busy }
     </section>
 
     <section className="metrics" aria-label="Treasury metrics">
-      <article><CircleDollarSign /><div><span>Treasury balance</span><strong>{overview.balanceDisplay} XLM</strong><small>{overview.balanceAtomic} stroops</small></div></article>
+      <article><CircleDollarSign /><div><span>Treasury balance</span><strong>{overview.balanceDisplay} {overview.assetCode}</strong><small>{overview.balanceAtomic} atomic units</small></div></article>
       <article><ShieldCheck /><div><span>Active allowances</span><strong>{totals.active}</strong><small>{overview.allowances.length} configured</small></div></article>
-      <article><Activity /><div><span>Settled payments</span><strong>{totals.settled}</strong><small>{amount(totals.spent.toString())} XLM tracked</small></div></article>
+      <article><Activity /><div><span>Settled payments</span><strong>{totals.settled}</strong><small>{amount(totals.spent.toString())} {overview.assetCode} tracked</small></div></article>
       <article><ShieldX /><div><span>Policy blocks</span><strong>{totals.blocked}</strong><small>No funds moved</small></div></article>
     </section>
 
@@ -247,8 +265,8 @@ function OverviewView({ overview, totals, selectedId, onSelect, onRevoke, busy }
           <tbody>{overview.allowances.map((item) => <tr key={item.allowanceId} className={selectedId === item.allowanceId ? "selected" : ""} onClick={() => onSelect(item.allowanceId)}>
             <td><strong>{item.label}</strong><small>Rule #{item.contextRuleId}</small></td>
             <td><CopyAddress value={item.delegatedSigner} /></td>
-            <td>{amount(item.maxSpendAtomic)} XLM</td>
-            <td>{amount(item.spentAtomic)} XLM</td>
+            <td>{amount(item.maxSpendAtomic)} {overview.assetCode}</td>
+            <td>{amount(item.spentAtomic)} {overview.assetCode}</td>
             <td><CopyAddress value={item.allowedRecipients[0] ?? ""} /></td>
             <td>Ledger {item.validUntilLedger.toLocaleString()}</td>
             <td><Status value={item.status} /></td>
@@ -258,7 +276,7 @@ function OverviewView({ overview, totals, selectedId, onSelect, onRevoke, busy }
       </div>
     </section>
 
-    <AttemptFeed attempts={overview.attempts.slice(0, 6)} />
+    <AttemptFeed attempts={overview.attempts.slice(0, 6)} assetCode={overview.assetCode} />
   </div>;
 }
 
@@ -281,25 +299,29 @@ function CommandCenter({ overview, selectedId, onSelect, busy, result, onRun }: 
       </div>
       {result && <div className={`run-result ${result.includes("PAID") ? "success" : "danger"}`}><Status value={result.includes("PAID") ? "PAID_AND_UNLOCKED" : "POLICY_BLOCKED"} /><strong>{result}</strong></div>}
     </section>
-    <AttemptFeed attempts={overview.attempts} live />
+    <AttemptFeed attempts={overview.attempts} assetCode={overview.assetCode} live />
   </div>;
 }
 
-function AttemptFeed({ attempts, live = false }: { attempts: PaymentAttempt[]; live?: boolean }) {
+function AttemptFeed({ attempts, assetCode, live = false }: { attempts: PaymentAttempt[]; assetCode: string; live?: boolean }) {
   return <section className={`section-block attempt-feed ${live ? "live" : ""}`}>
     <div className="section-heading"><div><h2>{live ? "Live evidence feed" : "Recent evidence"}</h2><p>Normalized decisions with transaction correlation.</p></div>{live && <span className="live-label"><span />LIVE</span>}</div>
     <div className="attempt-list">{attempts.length === 0 ? <div className="empty">No payment attempts recorded.</div> : attempts.map((item) => <article key={item.attemptId}>
       <span className={`timeline-dot ${item.decision.toLowerCase()}`} />
-      <div><div className="attempt-title"><Status value={item.state} /><strong>{item.reasonCode ?? (item.state === "UNLOCKED" ? "PAID_AND_UNLOCKED" : item.decision)}</strong></div><p>{amount(item.amountAtomic)} XLM to {short(item.payTo)}</p><small>{new Date(item.updatedAt).toLocaleString()} | Attempt {short(item.attemptId, 8)}</small></div>
+      <div><div className="attempt-title"><Status value={item.state} /><strong>{item.reasonCode ?? (item.state === "UNLOCKED" ? "PAID_AND_UNLOCKED" : item.decision)}</strong></div><p>{amount(item.amountAtomic)} {assetCode} to {short(item.payTo)}</p><small>{new Date(item.updatedAt).toLocaleString()} | Attempt {short(item.attemptId, 8)}</small></div>
       {item.txHash && <a className="tx-link" href={`https://stellar.expert/explorer/testnet/tx/${item.txHash}`} target="_blank" rel="noreferrer">View tx <ArrowRight size={14} /></a>}
     </article>)}</div>
   </section>;
 }
 
-function CreateAllowanceDialog({ overview, onClose, onCreated }: {
+function CreateAllowanceDialog({ overview, onClose, onCreated, createAllowance }: {
   overview: Overview;
   onClose: () => void;
   onCreated: () => Promise<void>;
+  createAllowance: (form: {
+    label: string; delegatedSigner: string; maxSpendAtomic: string;
+    windowSeconds: number; recipient: string; expiresInSeconds: number;
+  }) => Promise<AllowanceRecord>;
 }) {
   const [form, setForm] = useState({
     label: "Data agent",
@@ -317,14 +339,14 @@ function CreateAllowanceDialog({ overview, onClose, onCreated }: {
       <div className="form-grid">
         <label className="field full"><span>Agent label</span><input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} /></label>
         <label className="field full"><span>Delegated signer</span><select value={form.delegatedSigner} onChange={(e) => setForm({ ...form, delegatedSigner: e.target.value })}>{overview.availableSigners.map((value) => <option key={value} value={value}>{value}</option>)}</select><small>No signer secret enters the browser.</small></label>
-        <label className="field"><span>Budget (stroops)</span><input inputMode="numeric" value={form.maxSpendAtomic} onChange={(e) => setForm({ ...form, maxSpendAtomic: e.target.value })} /><small>{/^\d+$/.test(form.maxSpendAtomic) ? amount(form.maxSpendAtomic) : "0"} XLM</small></label>
+        <label className="field"><span>Budget (atomic units)</span><input inputMode="numeric" value={form.maxSpendAtomic} onChange={(e) => setForm({ ...form, maxSpendAtomic: e.target.value })} /><small>{/^\d+$/.test(form.maxSpendAtomic) ? amount(form.maxSpendAtomic) : "0"} {overview.assetCode}</small></label>
         <label className="field"><span>Rolling window</span><select value={form.windowSeconds} onChange={(e) => setForm({ ...form, windowSeconds: Number(e.target.value) })}><option value={900}>15 minutes</option><option value={3600}>1 hour</option><option value={86400}>1 day</option></select></label>
         <label className="field full"><span>Approved recipient</span><input value={form.recipient} onChange={(e) => setForm({ ...form, recipient: e.target.value })} /></label>
         <label className="field full"><span>Permission lifetime</span><select value={form.expiresInSeconds} onChange={(e) => setForm({ ...form, expiresInSeconds: Number(e.target.value) })}><option value={900}>15 minutes</option><option value={3600}>1 hour</option><option value={86400}>1 day</option></select></label>
       </div>
       <div className="policy-review"><ShieldCheck size={18} /><div><strong>Exact policy scope</strong><span>SEP-41 transfer | one recipient | rolling cap | delegated signer | ledger expiry</span></div></div>
       {error && <div className="alert"><AlertTriangle size={16} />{error}</div>}
-      <div className="dialog-actions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={busy || !form.delegatedSigner} onClick={async () => { setBusy(true); setError(undefined); try { await api.createAllowance(form); await onCreated(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Create failed"); } finally { setBusy(false); } }}>{busy ? <LoaderCircle className="spin" /> : <Plus />}Create on Testnet</button></div>
+      <div className="dialog-actions"><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={busy || !form.delegatedSigner} onClick={async () => { setBusy(true); setError(undefined); try { await createAllowance(form); await onCreated(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Create failed"); } finally { setBusy(false); } }}>{busy ? <LoaderCircle className="spin" /> : <Plus />}Sign & create</button></div>
     </div>
   </div>;
 }

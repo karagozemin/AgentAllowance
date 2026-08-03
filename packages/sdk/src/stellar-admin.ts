@@ -12,7 +12,10 @@ import {
   scValToNative,
   xdr,
 } from "@stellar/stellar-sdk";
-import { buildDelegatedAuthorizationEntries } from "@agentallowance/stellar-smart-account-auth";
+import {
+  buildDelegatedAuthorizationEntries,
+  buildDelegatedAuthorizationTemplate,
+} from "@agentallowance/stellar-smart-account-auth";
 
 export type AdminConfig = {
   rpcUrl: string;
@@ -22,7 +25,8 @@ export type AdminConfig = {
   assetContract: string;
   spendingPolicy: string;
   recipientPolicy: string;
-  adminSigner: Keypair;
+  adminAddress: string;
+  adminSigner?: Keypair;
   transactionSource: Keypair;
   adminRuleId?: number;
 };
@@ -34,6 +38,15 @@ export type CreateRuleInput = {
   windowLedgers: number;
   recipient: string;
   validUntilLedger: number;
+};
+
+export type PreparedWalletAdminCall = {
+  method: "add_context_rule" | "remove_context_rule";
+  argsXdr: string[];
+  sourceSequence: string;
+  smartAccountEntryXdr: string;
+  unsignedAdminEntryXdr: string;
+  validUntilLedgerSeq: number;
 };
 
 function variant(name: string, ...values: xdr.ScVal[]): xdr.ScVal {
@@ -59,11 +72,154 @@ function unsignedI128(value: bigint): xdr.ScVal {
   }));
 }
 
+function createRuleArgs(config: AdminConfig, input: CreateRuleInput): xdr.ScVal[] {
+  if (!Number.isInteger(input.windowLedgers) || input.windowLedgers <= 0) {
+    throw new Error("windowLedgers must be positive");
+  }
+  const policies = sortedMap([
+    new xdr.ScMapEntry({
+      key: Address.fromString(config.spendingPolicy).toScVal(),
+      val: struct({
+        period_ledgers: xdr.ScVal.scvU32(input.windowLedgers),
+        spending_limit: unsignedI128(input.maxSpendAtomic),
+      }),
+    }),
+    new xdr.ScMapEntry({
+      key: Address.fromString(config.recipientPolicy).toScVal(),
+      val: struct({
+        recipient: Address.fromString(input.recipient).toScVal(),
+        token: Address.fromString(config.assetContract).toScVal(),
+      }),
+    }),
+  ]);
+  return [
+    variant("CallContract", Address.fromString(config.assetContract).toScVal()),
+    xdr.ScVal.scvString(input.label.slice(0, 16)),
+    xdr.ScVal.scvU32(input.validUntilLedger),
+    xdr.ScVal.scvVec([variant("Delegated", Address.fromString(input.delegatedSigner).toScVal())]),
+    policies,
+  ];
+}
+
+function buildAdminTransaction(
+  config: AdminConfig,
+  method: string,
+  args: xdr.ScVal[],
+  sourceSequence: string,
+  auth: xdr.SorobanAuthorizationEntry[],
+) {
+  const func = xdr.HostFunction.hostFunctionTypeInvokeContract(new xdr.InvokeContractArgs({
+    contractAddress: Address.fromString(config.treasuryContract).toScAddress(),
+    functionName: method,
+    args,
+  }));
+  return new TransactionBuilder(new Account(config.transactionSource.publicKey(), sourceSequence), {
+    fee: "1000000",
+    networkPassphrase: config.networkPassphrase,
+  }).addOperation(Operation.invokeHostFunction({ func, auth })).setTimeout(60).build();
+}
+
+export async function prepareWalletAdminCall(
+  config: AdminConfig,
+  method: PreparedWalletAdminCall["method"],
+  args: xdr.ScVal[],
+): Promise<PreparedWalletAdminCall> {
+  const server = new rpc.Server(config.rpcUrl);
+  const sourceSequence = (await new Horizon.Server(config.horizonUrl)
+    .loadAccount(config.transactionSource.publicKey())).sequenceNumber();
+  const recording = await server._simulateTransaction(
+    buildAdminTransaction(config, method, args, sourceSequence, []), undefined, "record",
+  );
+  if (recording.error || !recording.results?.[0]?.auth) {
+    throw new Error(`Admin recording simulation failed: ${recording.error ?? "missing auth"}`);
+  }
+  const payerEntry = recording.results[0].auth
+    .map((raw) => xdr.SorobanAuthorizationEntry.fromXDR(raw, "base64"))
+    .find((entry) => entry.credentials().switch().name === "sorobanCredentialsAddress" &&
+      Address.fromScAddress(entry.credentials().address().address()).toString() === config.treasuryContract);
+  if (!payerEntry) throw new Error("Admin simulation did not return treasury authorization");
+  const validUntilLedgerSeq = Number(recording.latestLedger) + 12;
+  const auth = await buildDelegatedAuthorizationTemplate({
+    smartAccountEntry: payerEntry,
+    delegate: config.adminAddress,
+    contextRuleIds: [config.adminRuleId ?? 0],
+    validUntilLedgerSeq,
+    networkPassphrase: config.networkPassphrase,
+  });
+  return {
+    method,
+    argsXdr: args.map((value) => value.toXDR("base64")),
+    sourceSequence,
+    smartAccountEntryXdr: auth.smartAccountEntry.toXDR("base64"),
+    unsignedAdminEntryXdr: auth.delegatedSignerEntry.toXDR("base64"),
+    validUntilLedgerSeq,
+  };
+}
+
+export function validateSignedWalletAdminEntry(config: AdminConfig, prepared: PreparedWalletAdminCall, signedXdr: string) {
+  const unsigned = xdr.SorobanAuthorizationEntry.fromXDR(prepared.unsignedAdminEntryXdr, "base64");
+  const signed = xdr.SorobanAuthorizationEntry.fromXDR(signedXdr, "base64");
+  const unsignedCredentials = unsigned.credentials().address();
+  const signedCredentials = signed.credentials().address();
+  if (Address.fromScAddress(signedCredentials.address()).toString() !== config.adminAddress) {
+    throw new Error("Signed admin entry address does not match treasury admin");
+  }
+  if (unsignedCredentials.nonce().toString() !== signedCredentials.nonce().toString() ||
+      unsignedCredentials.signatureExpirationLedger() !== signedCredentials.signatureExpirationLedger() ||
+      unsigned.rootInvocation().toXDR("base64") !== signed.rootInvocation().toXDR("base64")) {
+    throw new Error("Signed admin entry changed the prepared authorization");
+  }
+  const signature = signedCredentials.signature();
+  if (signature.switch().name !== "scvVec" || !signature.vec()?.length) {
+    throw new Error("Signed admin entry is missing the wallet signature");
+  }
+  return signed;
+}
+
+export async function submitWalletAdminCall(
+  config: AdminConfig,
+  prepared: PreparedWalletAdminCall,
+  signedAdminEntryXdr: string,
+): Promise<{ transactionHash: string; retval: unknown }> {
+  const server = new rpc.Server(config.rpcUrl);
+  const args = prepared.argsXdr.map((value) => xdr.ScVal.fromXDR(value, "base64"));
+  const smartEntry = xdr.SorobanAuthorizationEntry.fromXDR(prepared.smartAccountEntryXdr, "base64");
+  const signedEntry = validateSignedWalletAdminEntry(config, prepared, signedAdminEntryXdr);
+  const build = () => buildAdminTransaction(config, prepared.method, args, prepared.sourceSequence, [smartEntry, signedEntry]);
+  const enforcing = await server._simulateTransaction(build(), undefined, "enforce");
+  const retvalXdr = enforcing.results?.[0]?.xdr;
+  if (enforcing.error || !retvalXdr) {
+    throw new Error(`Admin enforcing simulation failed: ${enforcing.error ?? "missing result"}`);
+  }
+  const retval = scValToNative(xdr.ScVal.fromXDR(retvalXdr, "base64")) as unknown;
+  const transaction = await server.prepareTransaction(build());
+  transaction.sign(config.transactionSource);
+  const submitted = await server.sendTransaction(transaction);
+  if (submitted.status === "ERROR") throw new Error(`Admin transaction submission failed: ${submitted.hash}`);
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    const result = await server.getTransaction(submitted.hash);
+    if (result.status === "SUCCESS") return { transactionHash: submitted.hash, retval };
+    if (result.status === "FAILED") throw new Error("Admin transaction failed on chain");
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error(`Admin settlement unknown for ${submitted.hash}`);
+}
+
+export async function prepareCreateContextRuleAuthorization(config: AdminConfig, input: CreateRuleInput) {
+  return prepareWalletAdminCall(config, "add_context_rule", createRuleArgs(config, input));
+}
+
+export async function prepareRevokeContextRuleAuthorization(config: AdminConfig, contextRuleId: number) {
+  return prepareWalletAdminCall(config, "remove_context_rule", [nativeToScVal(contextRuleId, { type: "u32" })]);
+}
+
 async function submitAdminCall(
   config: AdminConfig,
   method: string,
   args: xdr.ScVal[],
 ): Promise<{ transactionHash: string; retval: unknown }> {
+  if (!config.adminSigner) throw new Error("Server admin signer is not configured; use wallet authorization");
   const server = new rpc.Server(config.rpcUrl);
   const horizon = new Horizon.Server(config.horizonUrl);
   const loadedAccount = await horizon.loadAccount(config.transactionSource.publicKey());
@@ -140,32 +296,7 @@ export async function createContextRule(
   config: AdminConfig,
   input: CreateRuleInput,
 ): Promise<{ contextRuleId: number; transactionHash: string }> {
-  if (!Number.isInteger(input.windowLedgers) || input.windowLedgers <= 0) {
-    throw new Error("windowLedgers must be positive");
-  }
-  const policies = sortedMap([
-    new xdr.ScMapEntry({
-      key: Address.fromString(config.spendingPolicy).toScVal(),
-      val: struct({
-        period_ledgers: xdr.ScVal.scvU32(input.windowLedgers),
-        spending_limit: unsignedI128(input.maxSpendAtomic),
-      }),
-    }),
-    new xdr.ScMapEntry({
-      key: Address.fromString(config.recipientPolicy).toScVal(),
-      val: struct({
-        recipient: Address.fromString(input.recipient).toScVal(),
-        token: Address.fromString(config.assetContract).toScVal(),
-      }),
-    }),
-  ]);
-  const result = await submitAdminCall(config, "add_context_rule", [
-    variant("CallContract", Address.fromString(config.assetContract).toScVal()),
-    xdr.ScVal.scvString(input.label.slice(0, 16)),
-    xdr.ScVal.scvU32(input.validUntilLedger),
-    xdr.ScVal.scvVec([variant("Delegated", Address.fromString(input.delegatedSigner).toScVal())]),
-    policies,
-  ]);
+  const result = await submitAdminCall(config, "add_context_rule", createRuleArgs(config, input));
   const context = result.retval as { id?: unknown };
   if (!Number.isInteger(context.id)) throw new Error("Created rule did not return a context rule ID");
   return { contextRuleId: Number(context.id), transactionHash: result.transactionHash };

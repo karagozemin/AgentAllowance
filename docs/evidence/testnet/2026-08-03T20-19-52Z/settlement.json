@@ -1,0 +1,66 @@
+{
+  "network": "stellar:testnet",
+  "facilitator": "local OpenZeppelin Relayer 1.7.0 with the policy-aware x402 extension",
+  "payment": {
+    "amountAtomic": "100000",
+    "amount": "0.0100000",
+    "assetCode": "USDC",
+    "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "payer": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+    "merchant": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+    "delegatedSigner": "GD3ILGD7EX3MM72FIZJUT3QUNXVNSA2PJENWWCHZEXPIEXAV2U4UWJDX",
+    "contextRuleId": 1,
+    "authorizationEntryAddresses": [
+      "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+      "GD3ILGD7EX3MM72FIZJUT3QUNXVNSA2PJENWWCHZEXPIEXAV2U4UWJDX"
+    ]
+  },
+  "verify": {
+    "requestedAt": "2026-08-03T20:18:55.483Z",
+    "httpStatus": 200,
+    "response": {
+      "isValid": true,
+      "payer": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66"
+    }
+  },
+  "settle": {
+    "requestedAt": "2026-08-03T20:19:28.795Z",
+    "httpStatus": 200,
+    "response": {
+      "success": true,
+      "network": "stellar:testnet",
+      "payer": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+      "transaction": "11232c4accb4f6cbc6b4ba9455a25642be4e8b5c9d84d98cd8250bd0970152a3"
+    }
+  },
+  "transaction": {
+    "hash": "11232c4accb4f6cbc6b4ba9455a25642be4e8b5c9d84d98cd8250bd0970152a3",
+    "status": "SUCCESS",
+    "ledger": 3953687,
+    "applicationOrder": 17
+  },
+  "state": {
+    "treasuryBalanceAtomic": {
+      "before": "5000000",
+      "after": "4900000",
+      "delta": "-100000"
+    },
+    "merchantBalanceAtomic": {
+      "before": "0",
+      "after": "100000",
+      "delta": "100000"
+    },
+    "spendingLimit": {
+      "limitAtomic": "1000000",
+      "spentBeforeAtomic": "0",
+      "spentAfterAtomic": "100000",
+      "deltaAtomic": "100000",
+      "settlementLedger": 3953687
+    },
+    "recipientPolicy": {
+      "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "unchanged": true
+    }
+  }
+}

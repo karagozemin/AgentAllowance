@@ -55,7 +55,8 @@ export type AgentAllowanceConfig = {
   facilitatorUrl: string;
   facilitatorApiKey?: string;
   transactionSource: Keypair;
-  adminSigner: Keypair;
+  adminAddress?: string;
+  adminSigner?: Keypair;
   delegatedSigners: Record<string, Keypair>;
   databasePath?: string;
   store?: EvidenceStore;
@@ -98,7 +99,7 @@ export class AgentAllowance {
       config.spendingPolicy,
       config.recipientPolicy,
       config.transactionSource.publicKey(),
-      config.adminSigner.publicKey(),
+      config.adminAddress ?? config.adminSigner?.publicKey() ?? "",
     ]) assertAddress(value);
 
     this.allowances = {
@@ -465,6 +466,7 @@ export class AgentAllowance {
       assetContract: this.#config.assetContract,
       spendingPolicy: this.#config.spendingPolicy,
       recipientPolicy: this.#config.recipientPolicy,
+      adminAddress: this.#config.adminAddress ?? this.#config.adminSigner?.publicKey() ?? "",
       adminSigner: this.#config.adminSigner,
       transactionSource: this.#config.transactionSource,
     };

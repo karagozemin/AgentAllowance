@@ -4,6 +4,8 @@ export type Overview = {
   network: string;
   treasury: string;
   asset: string;
+  assetCode: string;
+  assetDecimals: number;
   balanceAtomic: string;
   balanceDisplay: string;
   currentLedger: number;
@@ -38,6 +40,18 @@ export const api = {
     recipient: string;
     expiresInSeconds: number;
   }) => request<AllowanceRecord>("/api/allowances", { method: "POST", body: JSON.stringify(body) }),
+  prepareWalletCreate: (body: {
+    label: string; delegatedSigner: string; maxSpendAtomic: string;
+    windowSeconds: number; recipient: string; expiresInSeconds: number;
+  }) => request<{ operationId: string; authEntryXdr: string }>("/api/owner/allowances/prepare", {
+    method: "POST", body: JSON.stringify(body),
+  }),
+  submitWalletCreate: (body: { operationId: string; signedAuthEntryXdr: string }) =>
+    request<AllowanceRecord>("/api/owner/allowances/submit", { method: "POST", body: JSON.stringify(body) }),
+  prepareWalletRevoke: (allowanceId: string) =>
+    request<{ operationId: string; authEntryXdr: string }>(`/api/owner/allowances/${allowanceId}/revoke/prepare`, { method: "POST" }),
+  submitWalletRevoke: (body: { operationId: string; signedAuthEntryXdr: string }) =>
+    request<AllowanceRecord>("/api/owner/allowances/revoke/submit", { method: "POST", body: JSON.stringify(body) }),
   revoke: (allowance: AllowanceRecord) => request<AllowanceRecord>(
     `/api/allowances/${allowance.allowanceId}/revoke`,
     {
@@ -52,5 +66,10 @@ export const api = {
     request<{ ok: boolean; reason?: string; attemptId?: string; resource?: unknown }>("/api/demo/run", {
       method: "POST",
       body: JSON.stringify({ allowanceId, scenario }),
+    }),
+  runPublic: (scenario: "success" | "over-limit" | "unapproved-recipient") =>
+    request<{ ok: boolean; reason?: string; attemptId?: string; resource?: unknown }>("/api/public-demo/run", {
+      method: "POST",
+      body: JSON.stringify({ scenario }),
     }),
 };

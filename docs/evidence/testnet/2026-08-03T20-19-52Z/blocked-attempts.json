@@ -1,0 +1,42 @@
+{
+  "network": "stellar:testnet",
+  "facilitator": "local OpenZeppelin Relayer 1.7.0 with the policy-aware x402 extension",
+  "stateBefore": {
+    "treasuryBalanceAtomic": "5000000",
+    "merchantBalanceAtomic": "0",
+    "spentAtomic": "0"
+  },
+  "attempts": [
+    {
+      "scenario": "over-limit",
+      "amountAtomic": "1000001",
+      "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "enforcingSimulationSucceeded": false,
+      "verify": {
+        "httpStatus": 200,
+        "isValid": false,
+        "invalidReason": "invalid_exact_stellar_payload_simulation_failed",
+        "payer": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66"
+      },
+      "settlementAttempted": false
+    },
+    {
+      "scenario": "unapproved-recipient",
+      "amountAtomic": "100000",
+      "recipient": "GAQNJIU3EXRGIGKORCPNRPK46UINEKACCEKOYOIRF26ZJMNVEPRTCMOM",
+      "enforcingSimulationSucceeded": false,
+      "verify": {
+        "httpStatus": 200,
+        "isValid": false,
+        "invalidReason": "invalid_exact_stellar_payload_simulation_failed",
+        "payer": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66"
+      },
+      "settlementAttempted": false
+    }
+  ],
+  "stateAfterBlockedAttempts": {
+    "treasuryBalanceAtomic": "5000000",
+    "merchantBalanceAtomic": "0",
+    "spentAtomic": "0"
+  }
+}

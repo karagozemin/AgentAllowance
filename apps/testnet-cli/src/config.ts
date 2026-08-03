@@ -10,6 +10,9 @@ dotenv.config({ path: path.join(workspaceRoot, "artifacts/local/relayer/latest.e
 
 export const NETWORK = "stellar:testnet" as const;
 export const NETWORK_PASSPHRASE = Networks.TESTNET;
+export const TESTNET_USDC_CODE = "USDC";
+export const TESTNET_USDC_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+export const TESTNET_USDC_SAC = new Asset(TESTNET_USDC_CODE, TESTNET_USDC_ISSUER).contractId(NETWORK_PASSPHRASE);
 export const RPC_URL = process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org";
 export const FACILITATOR_URL = process.env.X402_FACILITATOR_URL;
 export const FACILITATOR_API_KEY = process.env.X402_FACILITATOR_API_KEY;
