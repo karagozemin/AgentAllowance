@@ -67,7 +67,8 @@ pnpm run relayer:prepare
 pnpm run relayer:start
 ```
 
-Load the runtime environment, then start the merchant API and console in separate terminals:
+Load the runtime environment, set `CONSOLE_AUTH_USERNAME` and a long `CONSOLE_AUTH_PASSWORD` in
+`.env.local`, then start the merchant API and console in separate terminals:
 
 ```bash
 set -a; source artifacts/local/relayer/latest.env; set +a
@@ -82,7 +83,8 @@ pnpm --filter @agentallowance/console start
 
 Open `http://127.0.0.1:3000`. The console creates and revokes real Testnet rules, runs approved,
 over-limit and unapproved-recipient x402 scenarios, and correlates decisions with receipts and Stellar
-Expert links. The merchant API listens on `http://127.0.0.1:3001`.
+Expert links. The browser prompts for `CONSOLE_AUTH_USERNAME` and `CONSOLE_AUTH_PASSWORD`. The merchant
+API listens on `http://127.0.0.1:3001`.
 
 Dynamic facilitator profiles do not enumerate rule IDs. They pin the smart account,
 recipient-policy contract/WASM and OpenZeppelin spending-policy contract/WASM, then resolve the signed
@@ -165,8 +167,9 @@ The matching before/after state snapshots are named `state-render-before-approve
 OpenZeppelin's unmodified hosted facilitator still rejects the valid policy event. The local fork uses
 the official `openzeppelin/openzeppelin-relayer:1.7.0` image and the deployment steps in
 [the integration guide](docs/openzeppelin-facilitator-integration.md). A Render Free Testnet demo is
-defined by `render.yaml`; follow [the Render guide](deploy/render/README.md) without committing any
-signer or API secrets.
+defined by `render.yaml`. It contains the facilitator, merchant demo API, and authenticated operator
+console; follow [the Render guide](deploy/render/README.md) without committing any signer or API
+secrets.
 
 The currently running Render service was last confirmed with the original rule `1`-pinned manifest.
 On 2026-08-03 it rejected newly created rule `2` with
