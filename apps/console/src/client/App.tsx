@@ -141,7 +141,7 @@ export function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand"><ShieldCheck size={25} /><span>AgentAllowance</span></div>
+        <div className="brand"><img src="/agentallowance-logo.jpg" alt="" /><span>AgentAllowance</span></div>
         <nav aria-label="Primary navigation">
           <button className={view === "overview" ? "active" : ""} onClick={() => setView("overview")}>
             <LayoutDashboard size={18} />Overview
