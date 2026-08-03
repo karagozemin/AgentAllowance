@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import type { AllowanceRecord, PaymentAttempt } from "@agentallowance/shared";
-import { api, type Overview } from "./api.js";
+import { api, type Overview, type OwnerProfile } from "./api.js";
 import { getNetworkDetails, requestAccess, signAuthEntry, signMessage } from "@stellar/freighter-api";
 import { Networks } from "@stellar/stellar-sdk";
 
@@ -77,6 +77,7 @@ export function App() {
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<string>();
   const [ownerAddress, setOwnerAddress] = useState<string>();
+  const [ownerProfile, setOwnerProfile] = useState<OwnerProfile>();
   const [ownerBusy, setOwnerBusy] = useState(false);
   const connectOwner = async () => {
     setOwnerBusy(true); setError(undefined);
@@ -86,8 +87,7 @@ export function App() {
       const network = await getNetworkDetails();
       if (network.error) throw new Error(network.error.message);
       if (network.networkPassphrase !== Networks.TESTNET) throw new Error("Switch Freighter to Stellar Testnet before connecting");
-      const challenge = await api.ownerChallenge();
-      if (challenge.admin && challenge.admin !== address.address) throw new Error("Connected wallet is not the treasury admin");
+      const challenge = await api.ownerChallenge(address.address);
       const signed = await signMessage(challenge.message, { address: address.address });
       const raw = signed.signedMessage;
       if (!raw) throw new Error(signed.error?.message ?? "Wallet signature was rejected");
@@ -96,11 +96,14 @@ export function App() {
         : btoa(Array.from(raw, (byte) => String.fromCharCode(byte)).join(""));
       await api.ownerLogin({ nonce: challenge.nonce, address: address.address, signature });
       setOwnerAddress(address.address);
+      const profile = await api.ownerProfile();
+      setOwnerProfile(profile);
+      if (profile.onboarded) setOverview(await api.ownerOverview());
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Wallet login failed"); }
     finally { setOwnerBusy(false); }
   };
   const signPreparedEntry = async (authEntryXdr: string): Promise<string> => {
-    if (!ownerAddress) throw new Error("Connect the treasury admin wallet first");
+    if (!ownerAddress) throw new Error("Connect your treasury owner wallet first");
     const result = await signAuthEntry(authEntryXdr, {
       address: ownerAddress,
       networkPassphrase: Networks.TESTNET,
@@ -123,7 +126,7 @@ export function App() {
   const refresh = async () => {
     setError(undefined);
     try {
-      const value = await api.overview();
+      const value = ownerProfile?.onboarded ? await api.ownerOverview() : await api.overview();
       setOverview(value);
       if (!value.allowances.some((item) => item.allowanceId === selectedId)) {
         setSelectedId(value.allowances[0]?.allowanceId ?? "");
@@ -132,7 +135,20 @@ export function App() {
       setError(reason instanceof Error ? reason.message : "Unable to load console data");
     }
   };
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(); }, [ownerProfile?.onboarded]);
+
+  const onboardOwner = async () => {
+    setOwnerBusy(true); setError(undefined);
+    try {
+      const profile = await api.onboardOwner();
+      setOwnerProfile(profile);
+      setOverview(await api.ownerOverview());
+      setSelectedId("1");
+      if (profile.fundingError) setError(`Treasury created, but Testnet funding failed: ${profile.fundingError}`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Treasury onboarding failed");
+    } finally { setOwnerBusy(false); }
+  };
 
   const selected = overview?.allowances.find((item) => item.allowanceId === selectedId);
   const totals = useMemo(() => ({
@@ -148,7 +164,7 @@ export function App() {
     setError(undefined);
     setResult(undefined);
     try {
-      const response = await api.runPublic(scenario);
+      const response = ownerProfile?.onboarded ? await api.run(selected.allowanceId, scenario) : await api.runPublic(scenario);
       setResult(response.ok ? "PAID_AND_UNLOCKED" : response.reason ?? "POLICY_BLOCKED");
     } catch (reason) {
       setResult(reason instanceof Error ? reason.message : "POLICY_BLOCKED");
@@ -187,9 +203,11 @@ export function App() {
             <button className="icon-button" title="Refresh chain state" aria-label="Refresh chain state" onClick={() => void refresh()}>
               <RefreshCw size={17} />
             </button>
-            {ownerAddress
-              ? <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button>
-              : <button className="primary" disabled={ownerBusy} onClick={() => void connectOwner()}><LogIn size={17} />{ownerBusy ? "Connecting..." : "Connect Freighter"}</button>}
+            {!ownerAddress
+              ? <button className="primary" disabled={ownerBusy} onClick={() => void connectOwner()}><LogIn size={17} />{ownerBusy ? "Connecting..." : "Connect Freighter"}</button>
+              : !ownerProfile?.onboarded
+                ? <button className="primary" disabled={ownerBusy} onClick={() => void onboardOwner()}><ShieldCheck size={17} />{ownerBusy ? "Creating..." : "Create my treasury"}</button>
+                : <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button>}
           </div>
         </header>
 
@@ -201,7 +219,7 @@ export function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onRevoke={async (allowance) => {
-              if (!ownerAddress) {
+              if (!ownerAddress || !ownerProfile?.onboarded) {
                 await connectOwner();
                 return;
               }

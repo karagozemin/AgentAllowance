@@ -22,7 +22,7 @@ At process startup:
 
 1. Parse every manifest.
 2. Call `assertProductionManifest` so every policy adapter pins a 32-byte WASM hash.
-3. Reject duplicate `(network, smartAccount)` profiles.
+3. Reject duplicate `(network, smartAccount)` or `(network, smartAccountWasmHash)` profiles.
 4. Log the manifest ID and a hash of the normalized manifest.
 
 The MVP accepts exactly one required adapter: OpenZeppelin spending limit `0.7.2`. It does not accept
@@ -33,7 +33,8 @@ on-chain recipient configuration, enforcing simulation, and a rejected unapprove
 
 In `src/stellar/verify.ts`, retain the canonical checks through successful enforcing simulation. Then:
 
-1. Resolve a manifest by `networkConfig.network` and `fromAddress`.
+1. Resolve an address-pinned manifest by `networkConfig.network` and `fromAddress`, or resolve a
+   code-pinned manifest only after reading the payer contract's live WASM hash.
 2. If none exists, call OpenZeppelin's original `validateSimulationEvents` unchanged.
 3. If one exists, fetch each policy contract instance with `getLedgerEntries` using
    `contractInstanceLedgerKey(contractId)`.
@@ -46,17 +47,21 @@ In `src/stellar/verify.ts`, retain the canonical checks through successful enfor
 Representative insertion:
 
 ```ts
-const manifest = policyManifests.find(
+let manifest = policyManifests.find(
   (candidate) =>
     candidate.network === networkConfig.network && candidate.smartAccount === fromAddress,
 );
+
+if (!manifest) {
+  manifest = await findManifestByPayerWasmHash(fromAddress, policyManifests);
+}
 
 if (!manifest) {
   // Existing OpenZeppelin strict event validation remains unchanged.
   return validateCanonicalEventsOrSuccess(/* existing arguments */);
 }
 
-const observedWasmHashes = await resolvePolicyWasmHashes(relayer, manifest);
+const observedWasmHashes = await resolvePolicyWasmHashes(relayer, manifest, fromAddress);
 const policyDecision = await verifyPolicyAwarePayment({
   x402Version: paymentPayload.x402Version,
   transactionXdr: stellarPayload.transaction,
@@ -151,7 +156,7 @@ and preserve the timestamped evidence.
 ## Compatibility boundary
 
 - Unconfigured G-accounts retain OpenZeppelin's original behavior.
-- Configured AgentAllowance C-accounts require exactly two auth entries.
+- AgentAllowance C-accounts with the manifest-pinned treasury WASM require exactly two auth entries.
 - Unknown contract events remain rejected.
 - The only initial policy adapter is OpenZeppelin spending limit `0.7.2`.
 - Hosted OpenZeppelin infrastructure is not assumed to contain this extension.

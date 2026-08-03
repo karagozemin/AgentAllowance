@@ -6,19 +6,26 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { Asset, Keypair, Networks, rpc } from "@stellar/stellar-sdk";
+import { Address, Asset, Keypair, Networks, rpc, xdr } from "@stellar/stellar-sdk";
 import {
   AgentAllowance,
   SqliteEvidenceStore,
+  deployDeterministicTreasury,
+  deterministicTreasuryContractId,
+  fundTreasuryFromSponsor,
   prepareCreateContextRuleAuthorization,
   prepareRevokeContextRuleAuthorization,
+  readContractValue,
   submitWalletAdminCall,
+  treasuryExists,
   type AdminConfig,
   type AllowanceCreateInput,
   type AllowanceRecord,
   type PreparedWalletAdminCall,
+  type TreasuryDeploymentConfig,
 } from "@agentallowance/sdk";
-import { createConsoleApp } from "./app.js";
+import { createConsoleApp, type OwnerConsoleScope, type OwnerProfile } from "./app.js";
+import { PendingOwnerOperations } from "./owner-operations.js";
 
 const workspaceRoot = fileURLToPath(new URL("../../..", import.meta.url));
 dotenv.config({ path: path.join(workspaceRoot, ".env.local") });
@@ -41,6 +48,7 @@ type Deployment = {
   validUntil?: number;
   spendingLimit?: string;
   periodLedgers?: number;
+  wasmHashes?: { treasury?: string; spendingPolicy?: string; recipientPolicy?: string };
 };
 
 function required(name: string): string {
@@ -53,6 +61,18 @@ function requiredInteger(name: string): number {
   const value = Number(required(name));
   if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`);
   return value;
+}
+
+function integerEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name] ?? fallback);
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`);
+  return value;
+}
+
+function bigintEnv(name: string, fallback: string): bigint {
+  const raw = process.env[name]?.trim() || fallback;
+  if (!/^\d+$/u.test(raw)) throw new Error(`${name} must contain atomic units`);
+  return BigInt(raw);
 }
 
 function serviceUrl(value: string): string {
@@ -88,22 +108,12 @@ function optionalKeypair(alias: string): Keypair | undefined {
 }
 
 function keypairFromSecret(name: string): Keypair {
-  const secret = required(name);
-  try {
-    return Keypair.fromSecret(secret);
-  } catch {
-    throw new Error(`${name} is not a valid Stellar secret`);
-  }
+  try { return Keypair.fromSecret(required(name)); } catch { throw new Error(`${name} is not a valid Stellar secret`); }
 }
 
 const hosted = process.env.NODE_ENV === "production" ||
   Boolean(process.env.RENDER_SERVICE_ID) ||
   Boolean(process.env.TREASURY_CONTRACT);
-const adminSigner = hosted
-  ? (process.env.STELLAR_ADMIN_SECRET?.trim() ? keypairFromSecret("STELLAR_ADMIN_SECRET") : undefined)
-  : Keypair.fromSecret(stellarSecret(process.env.STELLAR_ADMIN_IDENTITY ?? "agentallowance-admin"));
-const adminAddress = process.env.STELLAR_ADMIN_ADDRESS?.trim() || adminSigner?.publicKey();
-if (!adminAddress) throw new Error("STELLAR_ADMIN_ADDRESS is required when no server admin signer is configured");
 const source = hosted || process.env.STELLAR_FEE_PAYER_SECRET
   ? keypairFromSecret("STELLAR_FEE_PAYER_SECRET")
   : Keypair.fromSecret(stellarSecret(process.env.STELLAR_FEE_PAYER_IDENTITY ?? "agentallowance-fee-payer"));
@@ -119,10 +129,13 @@ const delegates = hosted || process.env.STELLAR_DELEGATE_SECRETS
     ].filter((value): value is Keypair => Boolean(value));
 if (delegates.length === 0) throw new Error("At least one delegated signer is required");
 
+const hostedAdminSigner = process.env.STELLAR_ADMIN_SECRET?.trim()
+  ? keypairFromSecret("STELLAR_ADMIN_SECRET")
+  : undefined;
 const deployment: Deployment = hosted ? {
-  admin: adminAddress,
+  admin: required("STELLAR_ADMIN_ADDRESS"),
   token: required("STELLAR_TOKEN_CONTRACT"),
-  assetCode: process.env.STELLAR_ASSET_CODE?.trim() || "XLM",
+  assetCode: process.env.STELLAR_ASSET_CODE?.trim() || "USDC",
   assetDecimals: process.env.STELLAR_ASSET_DECIMALS ? requiredInteger("STELLAR_ASSET_DECIMALS") : 7,
   smartAccount: required("TREASURY_CONTRACT"),
   spendingPolicy: required("SPENDING_POLICY_CONTRACT"),
@@ -131,118 +144,258 @@ const deployment: Deployment = hosted ? {
   delegate: process.env.INITIAL_DELEGATED_SIGNER?.trim() || delegates[0]!.publicKey(),
   merchant: required("STELLAR_MERCHANT_ADDRESS"),
   unapprovedRecipient: required("STELLAR_UNAPPROVED_RECIPIENT_ADDRESS"),
-  allowanceRuleId: process.env.INITIAL_ALLOWANCE_RULE_ID
-    ? requiredInteger("INITIAL_ALLOWANCE_RULE_ID")
-    : undefined,
-  validUntil: process.env.INITIAL_ALLOWANCE_RULE_ID
-    ? requiredInteger("INITIAL_ALLOWANCE_VALID_UNTIL_LEDGER")
-    : undefined,
+  allowanceRuleId: process.env.INITIAL_ALLOWANCE_RULE_ID ? requiredInteger("INITIAL_ALLOWANCE_RULE_ID") : undefined,
+  validUntil: process.env.INITIAL_ALLOWANCE_RULE_ID ? requiredInteger("INITIAL_ALLOWANCE_VALID_UNTIL_LEDGER") : undefined,
   spendingLimit: process.env.INITIAL_ALLOWANCE_RULE_ID ? required("SPENDING_LIMIT") : undefined,
   periodLedgers: process.env.INITIAL_ALLOWANCE_RULE_ID ? requiredInteger("PERIOD_LEDGERS") : undefined,
+  wasmHashes: { treasury: required("TREASURY_WASM_HASH") },
 } : latestDeployment();
 deployment.assetCode ??= deployment.token === Asset.native().contractId(Networks.TESTNET) ? "XLM" : "USDC";
 deployment.assetDecimals ??= 7;
 
-if (deployment.admin !== adminAddress) throw new Error("Configured admin address does not match deployment");
-if (adminSigner && deployment.admin !== adminSigner.publicKey()) throw new Error("Configured admin signer does not match deployment");
 if (deployment.feePayer !== source.publicKey()) throw new Error("Configured fee payer does not match deployment");
+if (hostedAdminSigner && hostedAdminSigner.publicKey() !== deployment.admin) {
+  throw new Error("Configured public-demo admin signer does not match deployment");
+}
 if (!delegates.some((delegate) => delegate.publicKey() === deployment.delegate)) {
   throw new Error("INITIAL_DELEGATED_SIGNER does not match a configured delegated signer secret");
 }
-const store = new SqliteEvidenceStore(
-  process.env.DATABASE_URL ?? path.join(workspaceRoot, "data", `agentallowance-${deployment.smartAccount}.db`),
-);
+const treasuryWasmHash = (() => {
+  const value = deployment.wasmHashes?.treasury;
+  if (!value || !/^[0-9a-f]{64}$/iu.test(value)) {
+    throw new Error("TREASURY_WASM_HASH is required for wallet-owned treasury onboarding");
+  }
+  return value;
+})();
+
+const rpcUrl = process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org";
+const horizonUrl = process.env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org";
+const networkPassphrase = Networks.TESTNET;
 const configuredFacilitatorUrl = facilitatorUrl();
-const networkPassphrase = "Test SDF Network ; September 2015";
-const adminConfig: AdminConfig = {
-  rpcUrl: process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org",
-  horizonUrl: process.env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org",
-  networkPassphrase,
-  treasuryContract: deployment.smartAccount,
-  assetContract: deployment.token,
-  spendingPolicy: deployment.spendingPolicy,
-  recipientPolicy: deployment.recipientPolicy,
-  adminAddress,
-  adminSigner,
-  transactionSource: source,
-};
+const rpcServer = new rpc.Server(rpcUrl);
+const delegatedSigners = Object.fromEntries(delegates.map((delegate) => [delegate.publicKey(), delegate]));
+const demoServiceUrl = serviceUrl(process.env.DEMO_SERVICE_URL ?? "http://127.0.0.1:3001");
 
-const agentAllowance = new AgentAllowance({
-  network: "stellar:testnet",
-  rpcUrl: process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org",
-  assetContract: deployment.token,
-  treasuryContract: deployment.smartAccount,
-  spendingPolicy: deployment.spendingPolicy,
-  recipientPolicy: deployment.recipientPolicy,
-  facilitatorUrl: configuredFacilitatorUrl,
-  facilitatorApiKey: process.env.X402_FACILITATOR_API_KEY,
-  transactionSource: source,
-  adminAddress,
-  adminSigner,
-  delegatedSigners: Object.fromEntries(delegates.map((delegate) => [delegate.publicKey(), delegate])),
-  store,
-});
-
-if (deployment.allowanceRuleId !== undefined &&
-    deployment.validUntil !== undefined &&
-    deployment.spendingLimit !== undefined &&
-    deployment.periodLedgers !== undefined &&
-    !store.getAllowance(String(deployment.allowanceRuleId))) {
-  const timestamp = new Date().toISOString();
-  const initial: AllowanceRecord = {
-    allowanceId: String(deployment.allowanceRuleId),
-    label: "Primary research agent",
+function makeAgentAllowance(options: {
+  treasury: string;
+  adminAddress: string;
+  adminSigner?: Keypair;
+  store: SqliteEvidenceStore;
+}): AgentAllowance {
+  return new AgentAllowance({
     network: "stellar:testnet",
-    treasuryContract: deployment.smartAccount,
+    rpcUrl,
+    horizonUrl,
     assetContract: deployment.token,
-    delegatedSigner: deployment.delegate,
-    maxSpendAtomic: deployment.spendingLimit,
+    treasuryContract: options.treasury,
+    spendingPolicy: deployment.spendingPolicy,
+    recipientPolicy: deployment.recipientPolicy,
+    facilitatorUrl: configuredFacilitatorUrl,
+    facilitatorApiKey: process.env.X402_FACILITATOR_API_KEY,
+    transactionSource: source,
+    adminAddress: options.adminAddress,
+    adminSigner: options.adminSigner,
+    delegatedSigners,
+    store: options.store,
+  });
+}
+
+function putInitialRecord(store: SqliteEvidenceStore, values: {
+  treasury: string;
+  delegate: string;
+  validUntil: number;
+  spendingLimit: string;
+  periodLedgers: number;
+  merchant: string;
+  transactionHash?: string;
+}): void {
+  if (store.getAllowance("1")) return;
+  const timestamp = new Date().toISOString();
+  store.putAllowance({
+    allowanceId: "1",
+    label: "Initial autonomous agent",
+    network: "stellar:testnet",
+    treasuryContract: values.treasury,
+    assetContract: deployment.token,
+    delegatedSigner: values.delegate,
+    maxSpendAtomic: values.spendingLimit,
     spentAtomic: "0",
-    windowLedgers: deployment.periodLedgers,
-    allowedRecipients: [deployment.merchant],
-    validUntilLedger: deployment.validUntil,
-    contextRuleId: deployment.allowanceRuleId,
+    windowLedgers: values.periodLedgers,
+    allowedRecipients: [values.merchant],
+    validUntilLedger: values.validUntil,
+    contextRuleId: 1,
+    createTxHash: values.transactionHash,
     status: "ACTIVE",
     createdAt: timestamp,
     updatedAt: timestamp,
-  };
-  store.putAllowance(initial);
+  });
 }
 
-const rpcServer = new rpc.Server(process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org");
+const publicStore = new SqliteEvidenceStore(
+  process.env.DATABASE_URL ?? path.join(workspaceRoot, "data", `agentallowance-${deployment.smartAccount}.db`),
+);
+const publicAgentAllowance = makeAgentAllowance({
+  treasury: deployment.smartAccount,
+  adminAddress: deployment.admin,
+  adminSigner: hostedAdminSigner,
+  store: publicStore,
+});
+if (deployment.allowanceRuleId === 1 && deployment.validUntil !== undefined &&
+    deployment.spendingLimit !== undefined && deployment.periodLedgers !== undefined) {
+  putInitialRecord(publicStore, {
+    treasury: deployment.smartAccount,
+    delegate: deployment.delegate,
+    validUntil: deployment.validUntil,
+    spendingLimit: deployment.spendingLimit,
+    periodLedgers: deployment.periodLedgers,
+    merchant: deployment.merchant,
+  });
+}
+
+const ownerInitialLimit = bigintEnv("OWNER_INITIAL_SPENDING_LIMIT", "1000000");
+const ownerPeriodLedgers = integerEnv("OWNER_PERIOD_LEDGERS", 720);
+const ownerLifetimeLedgers = integerEnv("OWNER_ALLOWANCE_LIFETIME_LEDGERS", 17_280);
+const ownerInitialFunding = bigintEnv("OWNER_INITIAL_FUNDING_ATOMIC", "0");
+const ownerDatabaseDirectory = process.env.OWNER_DATABASE_DIRECTORY?.trim() || path.join(workspaceRoot, "data");
+const ownerDelegate = process.env.OWNER_DELEGATED_SIGNER?.trim() || delegates[0]!.publicKey();
+if (!delegatedSigners[ownerDelegate]) throw new Error("OWNER_DELEGATED_SIGNER has no configured secret");
+
+function ownerDeploymentConfig(validUntilLedger: number): TreasuryDeploymentConfig {
+  return {
+    rpcUrl,
+    horizonUrl,
+    networkPassphrase,
+    transactionSource: source,
+    treasuryWasmHash,
+    assetContract: deployment.token,
+    spendingPolicy: deployment.spendingPolicy,
+    recipientPolicy: deployment.recipientPolicy,
+    delegatedSigner: ownerDelegate,
+    recipient: deployment.merchant,
+    initialSpendingLimit: ownerInitialLimit,
+    periodLedgers: ownerPeriodLedgers,
+    validUntilLedger,
+    deploymentVersion: process.env.OWNER_TREASURY_VERSION?.trim() || "treasury-v1",
+  };
+}
+
+function ownerTreasury(owner: string): string {
+  return deterministicTreasuryContractId(owner, ownerDeploymentConfig(1));
+}
+
+let sourceQueue: Promise<void> = Promise.resolve();
+function serializeSource<T>(operation: () => Promise<T>): Promise<T> {
+  const result = sourceQueue.then(operation, operation);
+  sourceQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
 type PendingAdminOperation = {
+  owner: string;
   kind: "create" | "revoke";
   prepared: PreparedWalletAdminCall;
   expiresAt: number;
   input?: AllowanceCreateInput & { windowLedgers: number; validUntilLedger: number };
   allowanceId?: string;
 };
-const pendingAdminOperations = new Map<string, PendingAdminOperation>();
+const pendingAdminOperations = new PendingOwnerOperations<PendingAdminOperation>();
+const ownerProfiles = new Map<string, OwnerProfile>();
+const ownerScopes = new Map<string, Promise<OwnerConsoleScope>>();
 
-function takePending(operationId: string, kind: PendingAdminOperation["kind"]): PendingAdminOperation {
-  const pending = pendingAdminOperations.get(operationId);
-  pendingAdminOperations.delete(operationId);
-  if (!pending || pending.kind !== kind || pending.expiresAt < Date.now()) {
-    throw new Error("Prepared wallet authorization is missing or expired");
-  }
-  return pending;
+function takePending(operationId: string, kind: PendingAdminOperation["kind"], owner: string): PendingAdminOperation {
+  return pendingAdminOperations.take(operationId, kind, owner);
 }
 
-const app = createConsoleApp({
-  agentAllowance,
-  deployment,
-  facilitatorUrl: configuredFacilitatorUrl,
-  availableSigners: delegates.map((delegate) => delegate.publicKey()),
-  demoServiceUrl: serviceUrl(process.env.DEMO_SERVICE_URL ?? "http://127.0.0.1:3001"),
-  getLatestLedger: async () => Number((await rpcServer.getLatestLedger()).sequence),
-  publicDemo: {
-    allowanceId: process.env.PUBLIC_DEMO_ALLOWANCE_ID?.trim() || (deployment.allowanceRuleId ? String(deployment.allowanceRuleId) : undefined),
-    successCooldownMs: Number(process.env.PUBLIC_DEMO_SUCCESS_COOLDOWN_MS ?? "3600000"),
-  },
-  walletAdmin: {
+function findAddress(value: unknown, prefix: "G" | "C"): string | undefined {
+  if (typeof value === "string" && value.startsWith(prefix)) return value;
+  if (Array.isArray(value)) {
+    for (const item of value) { const found = findAddress(item, prefix); if (found) return found; }
+  } else if (value && typeof value === "object") {
+    for (const item of Object.values(value as Record<string, unknown>)) {
+      const found = findAddress(item, prefix); if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+async function hydrateOwnerStore(treasury: string, store: SqliteEvidenceStore): Promise<void> {
+  let count = 0;
+  try {
+    count = Number(await readContractValue({
+      rpcUrl, networkPassphrase, transactionSource: source.publicKey(), contractId: treasury,
+      method: "get_context_rules_count", args: [],
+    }));
+  } catch { return; }
+  for (let contextRuleId = 1; contextRuleId < count; contextRuleId += 1) {
+    if (store.getAllowance(String(contextRuleId))) continue;
+    try {
+      const [rule, spending, recipient] = await Promise.all([
+        readContractValue({
+          rpcUrl, networkPassphrase, transactionSource: source.publicKey(), contractId: treasury,
+          method: "get_context_rule", args: [xdr.ScVal.scvU32(contextRuleId)],
+        }),
+        readContractValue({
+          rpcUrl, networkPassphrase, transactionSource: source.publicKey(), contractId: deployment.spendingPolicy,
+          method: "get_spending_limit_data",
+          args: [xdr.ScVal.scvU32(contextRuleId), Address.fromString(treasury).toScVal()],
+        }),
+        readContractValue({
+          rpcUrl, networkPassphrase, transactionSource: source.publicKey(), contractId: deployment.recipientPolicy,
+          method: "get_config",
+          args: [xdr.ScVal.scvU32(contextRuleId), Address.fromString(treasury).toScVal()],
+        }),
+      ]);
+      const ruleData = rule as Record<string, unknown>;
+      const spendingData = spending as Record<string, unknown>;
+      const recipientData = recipient as Record<string, unknown>;
+      const timestamp = new Date().toISOString();
+      const delegatedSigner = findAddress(ruleData.signers, "G");
+      const allowedRecipient = findAddress(recipientData.recipient, "G");
+      if (!delegatedSigner || !allowedRecipient) continue;
+      store.putAllowance({
+        allowanceId: String(contextRuleId),
+        label: typeof ruleData.name === "string" ? ruleData.name : `On-chain allowance ${contextRuleId}`,
+        network: "stellar:testnet",
+        treasuryContract: treasury,
+        assetContract: deployment.token,
+        delegatedSigner,
+        maxSpendAtomic: String(spendingData.spending_limit),
+        spentAtomic: String(spendingData.cached_total_spent ?? 0),
+        windowLedgers: Number(spendingData.period_ledgers),
+        allowedRecipients: [allowedRecipient],
+        validUntilLedger: Number(ruleData.valid_until),
+        contextRuleId,
+        status: "ACTIVE",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+    } catch {
+      // Removed rules leave gaps in the monotonically increasing rule index.
+    }
+  }
+}
+
+async function createOwnerScope(owner: string): Promise<OwnerConsoleScope> {
+  const treasury = ownerTreasury(owner);
+  if (!await treasuryExists(rpcUrl, treasury)) throw new Error("OWNER_TREASURY_NOT_ONBOARDED");
+  const store = new SqliteEvidenceStore(path.join(ownerDatabaseDirectory, `owner-${treasury}.db`));
+  await hydrateOwnerStore(treasury, store);
+  const agentAllowance = makeAgentAllowance({ treasury, adminAddress: owner, store });
+  const adminConfig: AdminConfig = {
+    rpcUrl,
+    horizonUrl,
+    networkPassphrase,
+    treasuryContract: treasury,
+    assetContract: deployment.token,
+    spendingPolicy: deployment.spendingPolicy,
+    recipientPolicy: deployment.recipientPolicy,
+    adminAddress: owner,
+    transactionSource: source,
+  };
+  const walletAdmin: OwnerConsoleScope["walletAdmin"] = {
     prepareCreate: async (input) => {
       if (!input.label.trim() || input.allowedRecipients.length !== 1) throw new Error("One label and recipient are required");
-      if (!delegates.some((value) => value.publicKey() === input.delegatedSigner)) throw new Error("Delegated signer is not configured");
+      if (!delegatedSigners[input.delegatedSigner]) throw new Error("Delegated signer is not configured");
       if (!/^\d+$/u.test(input.maxSpendAtomic) || BigInt(input.maxSpendAtomic) <= 0n) throw new Error("Budget must be positive atomic units");
       const latest = Number((await rpcServer.getLatestLedger()).sequence);
       const windowLedgers = Math.ceil(input.windowSeconds / 5);
@@ -256,21 +409,21 @@ const app = createConsoleApp({
         validUntilLedger,
       });
       const operationId = randomUUID();
-      pendingAdminOperations.set(operationId, {
-        kind: "create", prepared, expiresAt: Date.now() + 60_000,
+      pendingAdminOperations.put(operationId, {
+        owner, kind: "create", prepared, expiresAt: Date.now() + 60_000,
         input: { ...input, windowLedgers, validUntilLedger },
       });
       return { operationId, authEntryXdr: prepared.unsignedAdminEntryXdr };
     },
     submitCreate: async (operationId, signedAuthEntryXdr) => {
-      const pending = takePending(operationId, "create");
-      const result = await submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr);
+      const pending = takePending(operationId, "create", owner);
+      const result = await serializeSource(() => submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr));
       const context = result.retval as { id?: unknown };
       if (!Number.isInteger(context.id) || !pending.input) throw new Error("Created rule did not return a context rule ID");
       const timestamp = new Date().toISOString();
       const record: AllowanceRecord = {
         allowanceId: String(context.id), label: pending.input.label, network: "stellar:testnet",
-        treasuryContract: deployment.smartAccount, assetContract: deployment.token,
+        treasuryContract: treasury, assetContract: deployment.token,
         delegatedSigner: pending.input.delegatedSigner, maxSpendAtomic: pending.input.maxSpendAtomic,
         spentAtomic: "0", windowLedgers: pending.input.windowLedgers,
         allowedRecipients: [...pending.input.allowedRecipients], validUntilLedger: pending.input.validUntilLedger,
@@ -282,21 +435,128 @@ const app = createConsoleApp({
     },
     prepareRevoke: async (allowanceId) => {
       const record = store.getAllowance(allowanceId);
-      if (!record) throw new Error("Allowance not found");
+      if (!record || record.treasuryContract !== treasury) throw new Error("Allowance not found for this wallet");
       const prepared = await prepareRevokeContextRuleAuthorization(adminConfig, record.contextRuleId);
       const operationId = randomUUID();
-      pendingAdminOperations.set(operationId, { kind: "revoke", prepared, allowanceId, expiresAt: Date.now() + 60_000 });
+      pendingAdminOperations.put(operationId, {
+        owner, kind: "revoke", prepared, allowanceId, expiresAt: Date.now() + 60_000,
+      });
       return { operationId, authEntryXdr: prepared.unsignedAdminEntryXdr };
     },
     submitRevoke: async (operationId, signedAuthEntryXdr) => {
-      const pending = takePending(operationId, "revoke");
+      const pending = takePending(operationId, "revoke", owner);
       const record = pending.allowanceId ? store.getAllowance(pending.allowanceId) : undefined;
-      if (!record) throw new Error("Allowance not found");
-      const result = await submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr);
-      const updated: AllowanceRecord = { ...record, status: "REVOKED", revokeTxHash: result.transactionHash, updatedAt: new Date().toISOString() };
+      if (!record || record.treasuryContract !== treasury) throw new Error("Allowance not found for this wallet");
+      const result = await serializeSource(() => submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr));
+      const updated: AllowanceRecord = {
+        ...record, status: "REVOKED", revokeTxHash: result.transactionHash, updatedAt: new Date().toISOString(),
+      };
       store.putAllowance(updated);
       return updated;
     },
+  };
+  return {
+    agentAllowance,
+    deployment: {
+      admin: owner,
+      token: deployment.token,
+      assetCode: deployment.assetCode,
+      assetDecimals: deployment.assetDecimals,
+      smartAccount: treasury,
+      merchant: deployment.merchant,
+    },
+    walletAdmin,
+  };
+}
+
+function ownerScope(owner: string): Promise<OwnerConsoleScope> {
+  const cached = ownerScopes.get(owner);
+  if (cached) return cached;
+  const created = createOwnerScope(owner).catch((error) => {
+    ownerScopes.delete(owner);
+    throw error;
+  });
+  ownerScopes.set(owner, created);
+  return created;
+}
+
+async function ownerProfile(owner: string): Promise<OwnerProfile> {
+  const cached = ownerProfiles.get(owner);
+  const treasury = ownerTreasury(owner);
+  return {
+    address: owner,
+    treasury,
+    onboarded: await treasuryExists(rpcUrl, treasury),
+    deploymentTransaction: cached?.deploymentTransaction,
+    fundingTransaction: cached?.fundingTransaction,
+    fundingError: cached?.fundingError,
+  };
+}
+
+async function onboardOwner(owner: string): Promise<OwnerProfile> {
+  const existing = await ownerProfile(owner);
+  if (existing.onboarded) return existing;
+  const latest = Number((await rpcServer.getLatestLedger()).sequence);
+  const validUntilLedger = latest + ownerLifetimeLedgers;
+  const result = await serializeSource(() => deployDeterministicTreasury(owner, ownerDeploymentConfig(validUntilLedger)));
+  let fundingTransaction: string | undefined;
+  let fundingError: string | undefined;
+  if (result.created && ownerInitialFunding > 0n) {
+    try {
+      fundingTransaction = await serializeSource(() => fundTreasuryFromSponsor({
+        rpcUrl,
+        horizonUrl,
+        networkPassphrase,
+        transactionSource: source,
+        assetContract: deployment.token,
+        treasuryContract: result.treasuryContract,
+        amount: ownerInitialFunding,
+      }));
+    } catch (error) {
+      fundingError = error instanceof Error ? error.message : "Sponsored Testnet funding failed";
+    }
+  }
+  const profile: OwnerProfile = {
+    address: owner,
+    treasury: result.treasuryContract,
+    onboarded: true,
+    deploymentTransaction: result.transactionHash,
+    fundingTransaction,
+    fundingError,
+  };
+  ownerProfiles.set(owner, profile);
+  if (result.created) {
+    const store = new SqliteEvidenceStore(path.join(ownerDatabaseDirectory, `owner-${result.treasuryContract}.db`));
+    putInitialRecord(store, {
+      treasury: result.treasuryContract,
+      delegate: ownerDelegate,
+      validUntil: validUntilLedger,
+      spendingLimit: ownerInitialLimit.toString(),
+      periodLedgers: ownerPeriodLedgers,
+      merchant: deployment.merchant,
+      transactionHash: result.transactionHash,
+    });
+  }
+  ownerScopes.delete(owner);
+  return profile;
+}
+
+const app = createConsoleApp({
+  agentAllowance: publicAgentAllowance,
+  deployment,
+  facilitatorUrl: configuredFacilitatorUrl,
+  availableSigners: delegates.map((delegate) => delegate.publicKey()),
+  demoServiceUrl,
+  getLatestLedger: async () => Number((await rpcServer.getLatestLedger()).sequence),
+  publicDemo: {
+    allowanceId: process.env.PUBLIC_DEMO_ALLOWANCE_ID?.trim() ||
+      (deployment.allowanceRuleId ? String(deployment.allowanceRuleId) : undefined),
+    successCooldownMs: Number(process.env.PUBLIC_DEMO_SUCCESS_COOLDOWN_MS ?? "3600000"),
+  },
+  ownerService: {
+    profile: ownerProfile,
+    onboard: onboardOwner,
+    scope: ownerScope,
   },
   auth: {
     username: required("CONSOLE_AUTH_USERNAME"),

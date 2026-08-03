@@ -77,7 +77,7 @@ function assertTrustedPolicyConfiguration(config: X402PluginConfig): void {
       if (manifest.network !== network.network) {
         throw new Error(`Policy manifest ${manifest.id} network does not match its network config`);
       }
-      const profile = `${manifest.network}:${manifest.smartAccount}`;
+      const profile = `${manifest.network}:${manifest.smartAccount ?? `wasm:${manifest.smartAccountWasmHash}`}`;
       if (profiles.has(profile)) {
         throw new Error(`Duplicate policy manifest profile ${profile}`);
       }

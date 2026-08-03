@@ -8,9 +8,8 @@ import { latestRunDirectory, stellar, workspaceRoot } from "./runtime.js";
 type Deployment = {
   token: string;
   relayer: string;
-  smartAccount: string;
   recipientPolicy: string;
-  wasmHashes: { recipientPolicy: string };
+  wasmHashes: { treasury: string; recipientPolicy: string };
 };
 
 const runDirectory = await latestRunDirectory();
@@ -23,7 +22,7 @@ const sourceManifest = JSON.parse(await readFile(path.join(runDirectory, "policy
 const manifest = {
   id: sourceManifest.id,
   network: sourceManifest.network,
-  smartAccount: deployment.smartAccount,
+  smartAccountWasmHash: deployment.wasmHashes.treasury,
   recipientPolicy: {
     contractId: deployment.recipientPolicy,
     expectedWasmHash: deployment.wasmHashes.recipientPolicy,

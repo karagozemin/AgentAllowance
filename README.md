@@ -53,6 +53,8 @@ amounts or recipients, nested invocations, stale payloads, and unapproved WASM.
 4. The policy-aware facilitator can verify and settle the exact transaction through an OpenZeppelin Relayer.
 5. Over-limit and unapproved-recipient attempts fail without moving funds.
 6. Every decision can be traced to simulation output, auth XDR, policy evidence, and a transaction hash.
+7. Any Testnet Freighter wallet can create a distinct smart-account treasury and administer only its
+   own allowances.
 
 ```text
 Owner sets bounded permission -> Agent receives HTTP 402 -> Smart account enforces policy
@@ -76,24 +78,26 @@ The full component, trust-boundary, authorization, and sequence diagrams are in
 - `apps/testnet-cli`: separate deploy, relayer preparation, scenario authorization, verify, settle, and status commands.
 - `packages/shared`: strict x402 v2 types, reason codes, amount conversion, hashing and receipts.
 - `packages/x402-payer`: smart-account transfer construction, enforcing simulation and facilitator client.
-- `packages/sdk`: multi-allowance administration, payer/fetch client, SQLite evidence and reconciliation.
-- `apps/x402-demo-api`: real HTTP 402 challenge, atomic settlement idempotency and protected resource.
-- `apps/console`: server-only signer boundary plus responsive React treasury and command console.
+- `packages/sdk`: deterministic owner-treasury deployment, multi-allowance administration, payer/fetch
+  client, isolated SQLite evidence and reconciliation.
+- `apps/x402-demo-api`: payer-agnostic HTTP 402 challenge, atomic settlement idempotency and protected resource.
+- `apps/console`: public demo plus wallet-owned treasury onboarding and administration.
 
 ## Product modes
 
 | Mode | Audience | Capability |
 | --- | --- | --- |
 | Public demo | Judges and visitors | Inspect evidence and trigger fixed approved/blocked scenarios with no arbitrary amount or recipient input |
-| Wallet owner | Configured treasury admin | Connect Freighter, prove wallet ownership, create and revoke bounded allowances |
+| Wallet owner | Any Testnet Freighter user | Create a deterministic treasury, then create and revoke only that treasury's bounded allowances |
 | Autonomous agent | Delegated backend signer | Complete x402 payments without per-payment owner approval |
 | Operator fallback | Maintainers | Relayer maintenance, reconciliation, deployment, and emergency API access |
 
-The primary UI does not expose a shared password. Freighter login uses a one-time, expiring challenge
-and a short-lived HttpOnly session. Create and revoke use a second Freighter prompt to sign the exact
-prepared Soroban admin authorization entry; the backend validates the signer, nonce, expiry and
-invocation before enforcing simulation and fee-payer submission. Basic Auth and the server signer
-remain emergency Testnet fallbacks, not the primary product path.
+The primary UI does not expose a shared password. Freighter login uses a wallet-bound, one-time,
+expiring challenge and a short-lived HttpOnly session. A first connection creates a deterministic
+C-account whose constructor admin is that wallet. Create and revoke use a second Freighter prompt to
+sign the exact prepared Soroban admin authorization entry; the backend validates owner, signer, nonce,
+expiry and invocation before enforcing simulation and fee-payer submission. Basic Auth remains an
+emergency maintenance fallback and cannot authenticate an owner endpoint.
 
 ## Pinned versions
 
@@ -158,13 +162,14 @@ pnpm --filter @agentallowance/console start
 
 Open `http://127.0.0.1:3000`. The console creates and revokes real Testnet rules, runs approved,
 over-limit and unapproved-recipient x402 scenarios, and correlates decisions with receipts and Stellar
-Expert links. The merchant API listens on `http://127.0.0.1:3001`. The overview is public; the
-configured treasury admin connects Freighter directly from the dashboard and signs a short-lived challenge before
-creating or revoking allowances. Basic Auth remains an emergency API fallback.
+Expert links. The merchant API listens on `http://127.0.0.1:3001`. The public overview uses the bounded
+demo treasury. Any Testnet Freighter wallet can sign a short-lived challenge, create its own
+deterministic treasury, and then sign create/revoke authorization entries for that treasury only.
+The delegated agent still pays autonomously after permission creation.
 
-Dynamic facilitator profiles do not enumerate rule IDs. They pin the smart account,
-recipient-policy contract/WASM and OpenZeppelin spending-policy contract/WASM, then resolve the signed
-rule ID against on-chain policy configuration.
+Dynamic facilitator profiles do not enumerate payer addresses or rule IDs. They pin the approved
+smart-account WASM hash, recipient-policy contract/WASM and OpenZeppelin spending-policy contract/WASM,
+then resolve the payer code identity and signed rule ID against on-chain policy configuration.
 
 ## Testnet sequence
 
@@ -336,6 +341,29 @@ the same USDC treasury. It returned `PAID_AND_UNLOCKED` with transaction
 [`ebfdc51dc534bb501b555a3b9541916361f2eb32573254992710acfca5125950`](https://stellar.expert/explorer/testnet/tx/ebfdc51dc534bb501b555a3b9541916361f2eb32573254992710acfca5125950).
 The normalized product-flow evidence is under
 [docs/evidence/testnet/2026-08-03T20-41-03Z](docs/evidence/testnet/2026-08-03T20-41-03Z/).
+
+## Multi-wallet owner onboarding result
+
+On 2026-08-03 an unconfigured, Friendbot-activated Testnet wallet authenticated through the same
+wallet-bound console challenge and received its own deterministic smart-account treasury. Read-only
+contract calls confirmed that rule `0` names that wallet as admin, while rule `1` contains the shared
+delegated agent, official Testnet USDC, spending limit, recipient policy, and expiry. The wallet then
+signed an exact admin authorization to create rule `2` and a second authorization to revoke it.
+
+```text
+Owner                  GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA
+Treasury               CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU
+Deploy transaction     c81c799af36f064ded0681ab52f8ff2f0c5e54a15f944b9c8a438bec26926faf
+Funding transaction    6af28b90b3aa49ec98d57cd928a46c9dee0c8a438c7b9825ccbd47acfe546099
+Create rule 2          6f07e5383589056c30b0c15fde90da28efb9f25f22a1f0c2aeb5040252fda032
+Revoke rule 2          d46b076588821ac29e5cc7642d854ba4b2a0308bbc106f0ca7ed05cf62c85496
+Treasury balance       100000 atomic USDC
+```
+
+The sanitized evidence is under
+[docs/evidence/testnet/2026-08-03T21-41-46-267Z-multi-wallet-onboarding](docs/evidence/testnet/2026-08-03T21-41-46-267Z-multi-wallet-onboarding/).
+The preceding fail-closed attempt with an unactivated G-account is retained separately under
+[docs/evidence/testnet/2026-08-03T21-40-27Z-multi-wallet-onboarding-failed](docs/evidence/testnet/2026-08-03T21-40-27Z-multi-wallet-onboarding-failed/).
 
 ## Submission evidence
 

@@ -1,0 +1,76 @@
+{
+  "recordedAt": "2026-08-03T21:41:46.265Z",
+  "consoleUrl": "http://127.0.0.1:3100",
+  "network": "stellar:testnet",
+  "owner": "GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA",
+  "before": {
+    "address": "GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA",
+    "treasury": "CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU",
+    "onboarded": false
+  },
+  "onboarded": {
+    "address": "GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA",
+    "treasury": "CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU",
+    "onboarded": true,
+    "deploymentTransaction": "c81c799af36f064ded0681ab52f8ff2f0c5e54a15f944b9c8a438bec26926faf",
+    "fundingTransaction": "6af28b90b3aa49ec98d57cd928a46c9dee0c8a438c7b9825ccbd47acfe546099"
+  },
+  "overview": {
+    "treasury": "CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU",
+    "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "assetCode": "USDC",
+    "balanceAtomic": "100000",
+    "initialAllowanceIds": [
+      "1"
+    ]
+  },
+  "created": {
+    "allowanceId": "2",
+    "label": "Compatibility owner",
+    "network": "stellar:testnet",
+    "treasuryContract": "CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU",
+    "assetContract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "delegatedSigner": "GD3ILGD7EX3MM72FIZJUT3QUNXVNSA2PJENWWCHZEXPIEXAV2U4UWJDX",
+    "maxSpendAtomic": "200000",
+    "spentAtomic": "0",
+    "windowLedgers": 720,
+    "allowedRecipients": [
+      "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ"
+    ],
+    "validUntilLedger": 3955390,
+    "contextRuleId": 2,
+    "createTxHash": "6f07e5383589056c30b0c15fde90da28efb9f25f22a1f0c2aeb5040252fda032",
+    "status": "ACTIVE",
+    "createdAt": "2026-08-03T21:41:41.285Z",
+    "updatedAt": "2026-08-03T21:41:41.285Z"
+  },
+  "revoked": {
+    "allowanceId": "2",
+    "label": "Compatibility owner",
+    "network": "stellar:testnet",
+    "treasuryContract": "CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU",
+    "assetContract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "delegatedSigner": "GD3ILGD7EX3MM72FIZJUT3QUNXVNSA2PJENWWCHZEXPIEXAV2U4UWJDX",
+    "maxSpendAtomic": "200000",
+    "spentAtomic": "0",
+    "windowLedgers": 720,
+    "allowedRecipients": [
+      "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ"
+    ],
+    "validUntilLedger": 3955390,
+    "contextRuleId": 2,
+    "createTxHash": "6f07e5383589056c30b0c15fde90da28efb9f25f22a1f0c2aeb5040252fda032",
+    "revokeTxHash": "d46b076588821ac29e5cc7642d854ba4b2a0308bbc106f0ca7ed05cf62c85496",
+    "status": "REVOKED",
+    "createdAt": "2026-08-03T21:41:41.285Z",
+    "updatedAt": "2026-08-03T21:41:46.263Z"
+  },
+  "assertions": {
+    "uniqueTreasuryCreated": true,
+    "ownerMatchesSession": true,
+    "ownerTreasuryUsed": true,
+    "createSucceeded": true,
+    "revokeSucceeded": true,
+    "ownerSecretExcluded": true
+  }
+}

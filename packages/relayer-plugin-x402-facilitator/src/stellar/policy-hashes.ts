@@ -12,12 +12,14 @@ type LedgerEntriesResult = {
 export async function resolvePolicyWasmHashes(
   relayer: Relayer,
   manifest: FacilitatorPolicyManifest,
+  payer?: string,
 ): Promise<Readonly<Record<string, string>>> {
   const hashes: Record<string, string> = {};
 
   const contracts = [
     ...manifest.adapters.map((adapter) => adapter.contractId),
     ...(manifest.recipientPolicy ? [manifest.recipientPolicy.contractId] : []),
+    ...(manifest.smartAccountWasmHash && payer ? [payer] : []),
   ];
 
   for (const contractId of contracts) {

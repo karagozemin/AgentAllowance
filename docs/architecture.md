@@ -19,16 +19,17 @@ the implemented Testnet architecture, not a hypothetical production system.
 
 ```mermaid
 flowchart LR
-    Owner["Treasury owner\nFreighter"]
+    Owners["Wallet owners A, B, ...\nFreighter"]
     Console["Public console\nOwner session"]
     Agent["AI agent\nDelegated signer"]
-    Treasury["OpenZeppelin Smart Account\nC-account treasury"]
+    Treasury["Deterministic OpenZeppelin Smart Accounts\nOne C-account per owner"]
     Policies["On-chain policies\nSpend + recipient + expiry"]
     Merchant["x402 merchant\nHTTP 402 resource"]
     Facilitator["Policy-aware facilitator\nOpenZeppelin Relayer plugin"]
     Relayer["Relayer G-account\nSource + fee payer"]
 
-    Owner -->|signed login challenge| Console
+    Owners -->|wallet-bound login challenge| Console
+    Console -->|sponsored deterministic deploy\nconstructor admin = wallet| Treasury
     Console -->|wallet-signed admin auth\nfee-payer submission| Treasury
     Agent -->|two-entry Soroban auth| Merchant
     Merchant -->|verify / settle| Facilitator
@@ -39,16 +40,18 @@ flowchart LR
     Treasury -->|asset transfer| Merchant
 ```
 
-The connected wallet proves ownership of the configured treasury admin address. Autonomous payments
-do not return to the owner for approval: the delegated signer authorizes each payment, while the smart
-account policies enforce the owner's previously configured boundaries.
+Each connected wallet proves control of its own G-account. The service deterministically derives and,
+when absent, sponsors deployment of a separate C-account whose on-chain admin is that wallet. Shared
+policy contracts remain multi-tenant because their keys include `(smart_account, context_rule_id)`.
+Autonomous payments do not return to the owner for approval: the delegated signer authorizes each
+payment while that owner's smart-account policies enforce the previously configured boundaries.
 
 ## Trust boundaries
 
 | Boundary | Holds secrets | Authority | Must not become |
 | --- | --- | --- | --- |
-| Treasury owner | Freighter admin key | Authenticate the owner session | Per-payment signer or relayer |
-| Console server | Demo admin fallback, fee payer, delegated demo keys | Owner session, orchestration, evidence | Browser key store |
+| Treasury owner | Freighter admin key | Authenticate its session and sign its own rule changes | Another owner's admin, per-payment signer, or relayer |
+| Console server | Fee sponsor and delegated demo keys | Deterministic deployment, orchestration, evidence | Treasury admin or browser key store |
 | Delegated agent | One delegated G-account key | Pay within one context rule | Treasury admin or fee payer |
 | Smart account | SEP-41 asset balance | Final authorization decision | Transaction source |
 | Policy contracts | On-chain rule state | Spend and recipient enforcement | General-purpose payment executor |
@@ -62,13 +65,19 @@ merchant, delegated signer, or any address-auth entry.
 ### Wallet-owner administration
 
 The public dashboard connects directly to Freighter without a password page or route transition. The
-server issues a one-time 120-second challenge; only a valid Ed25519 signature from the configured
-admin address creates the 15-minute HttpOnly owner session used by mutation endpoints. Challenges are
-single-use and both challenges and sessions are memory-bounded by expiry.
+server issues a one-time 120-second challenge bound to the requested G-account; any valid Testnet
+wallet signature can create a 15-minute HttpOnly owner session. Every owner endpoint resolves the
+wallet address from that server-side session rather than accepting it from a request body.
+
+The treasury deployment salt binds product version, network, fee sponsor, wallet owner, treasury WASM,
+asset, and both policy contracts. The resulting C-account is discoverable from public inputs after an
+ephemeral server restart. The fee sponsor signs the deployment envelope, but the constructor installs
+the connected wallet as rule `0` admin. A wallet can neither obtain another owner's runtime nor consume
+another owner's pending Freighter authorization operation.
 
 Create and revoke are two-phase operations. The server records the exact contract invocation and
 returns an unsigned delegated admin auth entry. Freighter signs that entry; the server then requires
-the configured admin address and unchanged nonce, expiry, invocation and auth tree before running
+the session's exact admin address and unchanged nonce, expiry, invocation and auth tree before running
 enforcing simulation. Only the relayer/fee-payer envelope signature remains server-side. The legacy
 server-admin signer is retained as an explicit Testnet emergency fallback and is not used by the
 wallet-owner endpoints. Autonomous delegated payment signing is independent of this admin path and
@@ -171,11 +180,12 @@ The verifier requires:
 5. Recipient and amount equal to the merchant requirements.
 6. Exactly the expected smart-account and delegated-signer auth entries.
 7. Replay-safe, bounded, unexpired authorization.
-8. One successful SEP-41 transfer event.
-9. One `spending_limit_enforced` event from the approved contract and WASM hash.
-10. Matching policy-event payer, token, amount, and context rule ID.
-11. On-chain recipient rule matching the signed token and recipient.
-12. No unknown, duplicate, spoofed, malformed, or unrelated contract events.
+8. Payer contract code equal to the manifest-pinned treasury WASM hash.
+9. One successful SEP-41 transfer event.
+10. One `spending_limit_enforced` event from the approved contract and WASM hash.
+11. Matching policy-event payer, token, amount, and context rule ID.
+12. On-chain recipient rule matching the signed token and recipient.
+13. No unknown, duplicate, spoofed, malformed, or unrelated contract events.
 
 `recipient_policy_enforced`, MPP, arbitrary event allowlists, and verifier bypasses are explicitly out
 of scope.
@@ -184,7 +194,7 @@ of scope.
 
 ```text
 apps/
-  console/                 public dashboard, wallet-owner login, operator fallback
+  console/                 public demo, per-wallet onboarding and owner administration
   x402-demo-api/           402 challenge, idempotent settlement, protected resource
   testnet-cli/             deploy, authorize, verify, settle, inspect, archive
 contracts/
@@ -196,7 +206,7 @@ packages/
   x402-payer/                   challenge parsing, simulation, payment payload
   facilitator-policy/           strict smart-account policy validation
   relayer-plugin-x402-facilitator/ OpenZeppelin plugin extension
-  sdk/                          allowances, payments, evidence, reconciliation
+  sdk/                          deterministic treasury deploy, allowances, payments, evidence
   shared/                       x402 types, hashes, amounts, reason codes
 ```
 
@@ -222,10 +232,11 @@ flowchart TD
 
 The Testnet deployment uses three coordinated Render services: the OpenZeppelin Relayer with the
 policy-aware plugin, the merchant demo API, and the console. Redis backs the Relayer queue. The
-console and merchant currently use single-instance SQLite and Render's ephemeral filesystem; on-chain
-state remains persistent, but application indexes may be reconstructed after a restart. Local default
-SQLite filenames are namespaced by treasury C-account so evidence from separate deployments cannot be
-silently merged; explicit hosted database paths remain operator-controlled.
+console and merchant currently use SQLite and Render's ephemeral filesystem. On-chain state remains
+persistent; owner treasury addresses are deterministically rediscovered and allowance indexes are
+reconstructed from contract and policy reads after a restart. Each owner uses a treasury-namespaced
+database, so identical rule IDs from different C-accounts cannot collide. Payment-attempt history still
+requires durable production storage.
 
 Production requires a shared transactional database, durable evidence storage, managed key custody
 or HSM signing, rate limiting, observability, disaster recovery, and independent audits of contracts,

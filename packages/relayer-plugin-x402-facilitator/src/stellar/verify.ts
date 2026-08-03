@@ -275,9 +275,21 @@ export async function verify(
       );
     }
 
-    const policyManifest = networkConfig.policy_manifests?.find(
+    let policyManifest = networkConfig.policy_manifests?.find(
       (candidate) => candidate.smartAccount === fromAddress,
     );
+    if (!policyManifest) {
+      const codePinnedProfiles = networkConfig.policy_manifests?.filter(
+        (candidate) => !candidate.smartAccount && candidate.smartAccountWasmHash,
+      ) ?? [];
+      for (const candidate of codePinnedProfiles) {
+        const hashes = await resolvePolicyWasmHashes(relayer, candidate, fromAddress);
+        if (hashes[fromAddress]?.toLowerCase() === candidate.smartAccountWasmHash!.toLowerCase()) {
+          policyManifest = candidate;
+          break;
+        }
+      }
+    }
     const protectedRelayerAddresses = [
       relayerInfo.address,
       channelServiceFundRelayerAddress,
@@ -467,13 +479,14 @@ export async function verify(
     }
 
     if (policyManifest) {
-      const observedWasmHashes = await resolvePolicyWasmHashes(relayer, policyManifest);
+      const observedWasmHashes = await resolvePolicyWasmHashes(relayer, policyManifest, fromAddress);
       const policyDecision = await verifyPolicyAwarePayment({
         x402Version: paymentPayload.x402Version,
         transactionXdr: stellarPayload.transaction,
         paymentRequirements,
         simulationEvents,
         manifest: policyManifest,
+        payer: fromAddress,
         observedWasmHashes,
         resolveAllowanceRule: (contextRuleId, payer) => relayerInfo.address
           ? resolveRecipientPolicyRule({

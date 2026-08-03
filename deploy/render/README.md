@@ -14,10 +14,11 @@ transaction source, fee payer, and settlement engine. The adapter preserves the 
 and bearer API key, and does not replace or relax verifier logic.
 
 The Blueprint also defines two Node services. `agentallowance-demo-api` is the public x402-protected
-merchant resource. `agentallowance-console` provides a public read-only dashboard and an authenticated
-operator mode backed by the server-side signer boundary. Both use SQLite under `/tmp`; that index is
-lost when a free instance is replaced or redeployed, while contract rules, balances, and settlement
-transactions remain on Testnet. This is an explicit demo limitation, not production persistence.
+merchant resource and accepts any smart-account payer approved by the policy-aware facilitator.
+`agentallowance-console` provides a bounded public demo plus per-wallet Testnet treasury onboarding.
+Both use SQLite under `/tmp`; payment-attempt history is lost when a free instance is replaced, while
+deterministic owner treasury discovery, on-chain allowance reconstruction, balances, policy state, and
+settlement transactions remain available from Testnet.
 
 ## Security boundary
 
@@ -27,9 +28,10 @@ transactions remain on Testnet. This is an explicit demo limitation, not product
   smart-account payer, merchant, delegated signer, or an address-auth entry.
 - The static config accepts only the pinned Testnet asset and manifest-pinned
   `spending_limit_enforced` event. Recipient-policy payment events remain unsupported.
-- The console exposes its UI, `/operator`, `/health`, and `/api/overview` publicly. The dashboard uses a
-  Freighter-signed treasury-owner challenge and a short-lived HttpOnly session. Basic Auth remains an
-  emergency API fallback; credentials are never bundled into React.
+- The console exposes its UI, `/operator`, `/health`, and `/api/overview` publicly. Any Testnet
+  Freighter G-account may sign a wallet-bound challenge and receive a short-lived HttpOnly session for
+  its own deterministic treasury. Basic Auth remains an emergency maintenance fallback and cannot
+  authenticate owner endpoints; credentials are never bundled into React.
 - The demo API has no admin signer. The console receives the public admin address plus fee-payer and
   delegated-signer secrets; the admin private key stays in Freighter.
 
@@ -73,6 +75,7 @@ jq '{token,smartAccount,spendingPolicy,recipientPolicy,merchant,unapprovedRecipi
 | `STELLAR_TOKEN_CONTRACT` | `token` |
 | `STELLAR_ASSET_CODE` | `assetCode` (`USDC` for the PRD deployment) |
 | `TREASURY_CONTRACT` | `smartAccount` |
+| `TREASURY_WASM_HASH` | `wasmHashes.treasury` |
 | `SPENDING_POLICY_CONTRACT` | `spendingPolicy` |
 | `RECIPIENT_POLICY_CONTRACT` | `recipientPolicy` |
 | `STELLAR_MERCHANT_ADDRESS` | `merchant` |
@@ -84,8 +87,10 @@ jq '{token,smartAccount,spendingPolicy,recipientPolicy,merchant,unapprovedRecipi
 | `PERIOD_LEDGERS` | `periodLedgers` |
 | `PUBLIC_DEMO_ALLOWANCE_ID` | `allowanceRuleId` |
 
-The console needs Testnet-only fee-payer and delegated-signer material. The admin private key stays in
-Freighter; set `STELLAR_ADMIN_ADDRESS` to the deployment's `admin` field. On macOS, copy each remaining secret directly to the clipboard
+The console needs Testnet-only fee-sponsor and delegated-signer material. The public demo admin private
+key stays outside the primary flow; set `STELLAR_ADMIN_ADDRESS` to the deployment's `admin` field.
+Every newly connected wallet becomes admin of its own deterministic treasury. On macOS, copy each
+remaining secret directly to the clipboard
 so it is not printed or added to shell history:
 
 ```bash
@@ -99,6 +104,11 @@ Paste those results, one at a time, into `STELLAR_FEE_PAYER_SECRET`,
 allowances. Multiple delegate secrets may be comma-separated. Never put the OpenZeppelin Relayer
 secret into these variables. `STELLAR_ADMIN_SECRET` is an optional emergency Testnet fallback and
 should be omitted from the primary wallet-owner deployment.
+
+`OWNER_INITIAL_FUNDING_ATOMIC` controls the one-time Testnet onboarding faucet. The Blueprint uses
+`100000` atomic USDC so a newly created treasury can demonstrate one small payment. Set it to `0` to
+disable sponsored funding. `OWNER_TREASURY_VERSION` must change only when deliberately moving owners
+to a new deterministic deployment profile.
 
 ## 3. Create or update the Blueprint
 
@@ -190,11 +200,13 @@ curl --fail --show-error --user 'operator:<CONSOLE_AUTH_PASSWORD>' \
 ```
 
 The public root, overview, and anonymous `/operator` must return `200`. Open the console URL, select
-**Connect Freighter**, connect the configured admin wallet, and sign the challenge. With an empty ephemeral
-database, create a fresh allowance before running a scenario. Confirm its delegated signer,
-recipient, amount, rolling window, and expiry in the form. `Over limit` and `Unapproved recipient`
-must be rejected without settlement. `Approved payment` performs a real Testnet `/verify` and
-`/settle`; run it only when another 100000-stroop Testnet payment is intended.
+**Connect Freighter**, connect any funded Testnet wallet, and sign the challenge. Select **Create my
+treasury**; confirm that the returned C-account differs for a second wallet. The constructor installs
+the connected wallet as admin and the configured delegate as the initial autonomous agent. Create and
+revoke additional rules through Freighter, then confirm the exact signer, recipient, amount, rolling
+window, and expiry. `Over limit` and `Unapproved recipient` must be rejected without settlement.
+`Approved payment` performs a real Testnet `/verify` and `/settle`; run it only when another 100000
+atomic-unit Testnet payment is intended.
 
 ## Local container check
 

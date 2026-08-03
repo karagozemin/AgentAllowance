@@ -1,0 +1,40 @@
+{
+  "recordedAfter": "2026-08-03T21:41:46.267Z",
+  "network": "stellar:testnet",
+  "treasury": "CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU",
+  "adminRule": {
+    "id": 0,
+    "contextType": "Default",
+    "signer": {
+      "type": "Delegated",
+      "address": "GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA"
+    },
+    "policies": [],
+    "validUntil": null
+  },
+  "initialAllowanceRule": {
+    "id": 1,
+    "contextType": {
+      "CallContract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+    },
+    "signer": {
+      "type": "Delegated",
+      "address": "GD3ILGD7EX3MM72FIZJUT3QUNXVNSA2PJENWWCHZEXPIEXAV2U4UWJDX"
+    },
+    "policies": [
+      "CBNVPB5CFXOIAGWAZOZJGOZDVGJPRG5FCNC3777R327U4NDORO4E2BT3",
+      "CDB2YGZ5RL4R4K37DVBT5UGBKVLYEQJMLGPYZJUSRPS5XULH672QLJUY"
+    ],
+    "validUntil": 3971948
+  },
+  "spendingLimit": {
+    "spendingLimit": "1000000",
+    "periodLedgers": 720,
+    "cachedTotalSpent": "0"
+  },
+  "recipientPolicy": {
+    "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ"
+  },
+  "treasuryBalanceAtomic": "100000"
+}

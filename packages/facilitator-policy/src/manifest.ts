@@ -19,6 +19,7 @@ export type FacilitatorPolicyManifest = {
   id: string;
   network: "stellar:testnet" | "stellar:pubnet";
   smartAccount?: string;
+  smartAccountWasmHash?: string;
   expectedRuleId?: number;
   allowedRuleIds?: number[];
   recipientPolicy?: RecipientPolicyBinding;
@@ -27,8 +28,14 @@ export type FacilitatorPolicyManifest = {
 
 export function assertProductionManifest(manifest: FacilitatorPolicyManifest): void {
   if (!manifest.id.trim()) throw new Error("Policy manifest ID is required");
-  if (!manifest.smartAccount || !/^C[A-Z2-7]{55}$/.test(manifest.smartAccount)) {
-    throw new Error("Policy manifest must pin a Stellar C-account payer");
+  if (manifest.smartAccount && !/^C[A-Z2-7]{55}$/.test(manifest.smartAccount)) {
+    throw new Error("Policy manifest smartAccount must be a Stellar C-account payer");
+  }
+  if (manifest.smartAccountWasmHash && !/^[0-9a-f]{64}$/i.test(manifest.smartAccountWasmHash)) {
+    throw new Error("Policy manifest smartAccountWasmHash must be a SHA-256 hash");
+  }
+  if (!manifest.smartAccount && !manifest.smartAccountWasmHash) {
+    throw new Error("Policy manifest must pin a smart-account address or WASM hash");
   }
   if (
     manifest.expectedRuleId !== undefined &&

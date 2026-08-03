@@ -124,6 +124,7 @@ describe("delegated smart-account transaction validation", () => {
 
   test("returns a valid policy-aware facilitator decision for the proof", async () => {
     const result = await verifyPolicyAwarePayment({
+      payer: deployment.smartAccount,
       x402Version: 2,
       transactionXdr,
       paymentRequirements: {
@@ -159,6 +160,7 @@ describe("delegated smart-account transaction validation", () => {
     const policy = JSON.parse(readFileSync(`${runDirectory}/deployment.json`, "utf8")).policy as string;
     const recipientPolicy = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
     const result = await verifyPolicyAwarePayment({
+      payer: deployment.smartAccount,
       x402Version: 2,
       transactionXdr,
       paymentRequirements: {
@@ -198,6 +200,7 @@ describe("delegated smart-account transaction validation", () => {
     const policy = JSON.parse(readFileSync(`${runDirectory}/deployment.json`, "utf8")).policy as string;
     const recipientPolicy = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
     const result = await verifyPolicyAwarePayment({
+      payer: deployment.smartAccount,
       x402Version: 2,
       transactionXdr,
       paymentRequirements: {

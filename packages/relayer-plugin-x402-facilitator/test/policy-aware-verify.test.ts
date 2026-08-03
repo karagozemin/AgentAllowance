@@ -108,4 +108,38 @@ describe("policy-aware OpenZeppelin facilitator verification", () => {
       invalidReason: "invalid_exact_stellar_payload_facilitator_in_auth",
     });
   });
+
+  test("accepts a payer selected by an approved smart-account WASM hash", async () => {
+    const network = config();
+    network.policy_manifests = [{
+      ...network.policy_manifests![0]!,
+      smartAccount: undefined,
+      smartAccountWasmHash: "33".repeat(32),
+    }];
+    vi.spyOn(policyHashes, "resolvePolicyWasmHashes").mockResolvedValue({
+      [deployment.smartAccount]: "33".repeat(32),
+      [deployment.policy]: expectedWasmHash,
+    });
+    await expect(verify(request(), api(), network)).resolves.toEqual({
+      isValid: true,
+      payer: deployment.smartAccount,
+    });
+  });
+
+  test("rejects an otherwise valid payment from an unapproved smart-account WASM", async () => {
+    const network = config();
+    network.policy_manifests = [{
+      ...network.policy_manifests![0]!,
+      smartAccount: undefined,
+      smartAccountWasmHash: "33".repeat(32),
+    }];
+    vi.spyOn(policyHashes, "resolvePolicyWasmHashes").mockResolvedValue({
+      [deployment.smartAccount]: "44".repeat(32),
+      [deployment.policy]: expectedWasmHash,
+    });
+    await expect(verify(request(), api(), network)).resolves.toMatchObject({
+      isValid: false,
+      invalidReason: "invalid_exact_stellar_payload_event_not_transfer",
+    });
+  });
 });

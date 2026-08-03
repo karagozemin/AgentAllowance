@@ -57,6 +57,7 @@ export async function verifyPolicyAwarePayment(options: {
   paymentRequirements: X402PaymentRequirements;
   simulationEvents: Array<xdr.DiagnosticEvent | string>;
   manifest: FacilitatorPolicyManifest;
+  payer: string;
   observedWasmHashes?: Readonly<Record<string, string>>;
   resolveAllowanceRule?: (
     contextRuleId: number,
@@ -80,13 +81,27 @@ export async function verifyPolicyAwarePayment(options: {
       detail: "Amount must be a positive atomic-unit integer",
     };
   }
-  const payer = options.manifest.smartAccount;
-  if (!payer) {
+  const payer = options.payer;
+  if (options.manifest.smartAccount && options.manifest.smartAccount !== payer) {
     return {
       isValid: false,
       invalidReason: "invalid_exact_stellar_payload_policy_manifest_mismatch",
-      detail: "Delegated profile requires a pinned smart account",
+      detail: "Manifest smart account differs from the signed payer",
     };
+  }
+  if (options.manifest.smartAccountWasmHash) {
+    const observedPayerHash = options.observedWasmHashes?.[payer];
+    if (
+      !observedPayerHash ||
+      observedPayerHash.toLowerCase() !== options.manifest.smartAccountWasmHash.toLowerCase()
+    ) {
+      return {
+        isValid: false,
+        payer,
+        invalidReason: "invalid_exact_stellar_payload_policy_manifest_mismatch",
+        detail: "Payer smart-account code identity is not manifest-pinned",
+      };
+    }
   }
 
   const expected = {

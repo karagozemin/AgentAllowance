@@ -8,6 +8,7 @@ const treasury = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
 const token = "CBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4";
 const signer = Keypair.random().publicKey();
 const merchant = Keypair.random().publicKey();
+const owner = Keypair.random();
 const authorization = `Basic ${Buffer.from("operator:test-password").toString("base64")}`;
 
 function allowance(): AllowanceRecord {
@@ -76,6 +77,17 @@ function setup() {
     fetch: payFetch,
     reconcile,
   } satisfies ConsoleApiConfig["agentAllowance"];
+  const walletAdmin = { prepareCreate, submitCreate, prepareRevoke, submitRevoke };
+  const profile = vi.fn(async (address: string) => ({ address, treasury, onboarded: true }));
+  const ownerService = {
+    profile,
+    onboard: vi.fn(async (address: string) => ({ address, treasury, onboarded: true })),
+    scope: vi.fn(async () => ({
+      agentAllowance,
+      deployment: { token, smartAccount: treasury, merchant },
+      walletAdmin,
+    })),
+  };
   const app = createConsoleApp({
     agentAllowance,
     deployment: { token, smartAccount: treasury, merchant },
@@ -84,10 +96,27 @@ function setup() {
     demoServiceUrl: "http://demo.test",
     getLatestLedger: async () => 1500,
     publicDemo: { allowanceId: "2", successCooldownMs: 60_000 },
-    walletAdmin: { prepareCreate, submitCreate, prepareRevoke, submitRevoke },
+    walletAdmin,
+    ownerService,
     auth: { username: "operator", password: "test-password" },
   });
-  return { app, create, revoke, payFetch, reconcile, prepareCreate, submitCreate };
+  return { app, create, revoke, payFetch, reconcile, prepareCreate, submitCreate, profile };
+}
+
+async function ownerCookie(app: ReturnType<typeof createConsoleApp>, wallet = owner): Promise<string> {
+  const challengeResponse = await app.request(`/api/owner/challenge?address=${wallet.publicKey()}`);
+  const challenge = await challengeResponse.json() as { nonce: string; message: string };
+  const response = await app.request("/api/owner/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      nonce: challenge.nonce,
+      address: wallet.publicKey(),
+      signature: wallet.sign(Buffer.from(challenge.message)).toString("base64"),
+    }),
+  });
+  expect(response.status).toBe(200);
+  return response.headers.get("set-cookie")!.split(";", 1)[0]!;
 }
 
 describe("console API", () => {
@@ -175,9 +204,13 @@ describe("console API", () => {
   test("keeps wallet preparation and submission behind authenticated owner state", async () => {
     const { app, prepareCreate, submitCreate } = setup();
     expect((await app.request("/api/owner/allowances/prepare", { method: "POST" })).status).toBe(401);
+    expect((await app.request("/api/owner/allowances/prepare", {
+      method: "POST", headers: { Authorization: authorization },
+    })).status).toBe(401);
+    const cookie = await ownerCookie(app);
     const prepared = await app.request("/api/owner/allowances/prepare", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authorization },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
       body: JSON.stringify({
         label: "data-agent", delegatedSigner: signer, maxSpendAtomic: "250000",
         windowSeconds: 3600, recipient: merchant, expiresInSeconds: 7200,
@@ -187,19 +220,49 @@ describe("console API", () => {
     expect(prepareCreate).toHaveBeenCalled();
     const submitted = await app.request("/api/owner/allowances/submit", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authorization },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
       body: JSON.stringify({ operationId: "op-create", signedAuthEntryXdr: "signed" }),
     });
     expect(submitted.status).toBe(201);
     expect(submitCreate).toHaveBeenCalledWith("op-create", "signed");
   });
 
+  test("accepts any valid wallet and keeps each owner address in its own session", async () => {
+    const { app, profile } = setup();
+    const second = Keypair.random();
+    const firstCookie = await ownerCookie(app, owner);
+    const secondCookie = await ownerCookie(app, second);
+    expect((await app.request("/api/owner/profile", { headers: { Cookie: firstCookie } })).status).toBe(200);
+    expect((await app.request("/api/owner/profile", { headers: { Cookie: secondCookie } })).status).toBe(200);
+    expect(profile.mock.calls.map(([address]) => address)).toEqual([owner.publicKey(), second.publicKey()]);
+  });
+
+  test("binds a login challenge to the wallet that requested it", async () => {
+    const { app } = setup();
+    const other = Keypair.random();
+    const challenge = await (await app.request(`/api/owner/challenge?address=${owner.publicKey()}`)).json() as {
+      nonce: string; message: string;
+    };
+    const response = await app.request("/api/owner/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nonce: challenge.nonce,
+        address: other.publicKey(),
+        signature: other.sign(Buffer.from(challenge.message)).toString("base64"),
+      }),
+    });
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "CHALLENGE_WALLET_MISMATCH" });
+  });
+
   test("runs only supported demo scenarios and normalizes policy blocks", async () => {
     const { app, payFetch } = setup();
+    const cookie = await ownerCookie(app);
     payFetch.mockRejectedValueOnce(new AgentAllowanceError("RECIPIENT_NOT_ALLOWED", { attemptId: "attempt-2" }));
     const blocked = await app.request("/api/demo/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authorization },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
       body: JSON.stringify({ allowanceId: "2", scenario: "unapproved-recipient" }),
     });
     expect(blocked.status).toBe(400);
@@ -211,7 +274,7 @@ describe("console API", () => {
 
     const invalid = await app.request("/api/demo/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authorization },
+      headers: { "Content-Type": "application/json", Cookie: cookie },
       body: JSON.stringify({ allowanceId: "2", scenario: "arbitrary" }),
     });
     expect(invalid.status).toBe(400);
@@ -236,8 +299,9 @@ describe("console API", () => {
 
   test("exposes reconciliation for uncertain attempts", async () => {
     const { app, reconcile } = setup();
+    const cookie = await ownerCookie(app);
     expect((await app.request("/api/attempts/attempt-1/reconcile", {
-      headers: { Authorization: authorization },
+      headers: { Cookie: cookie },
     })).status).toBe(200);
     expect(reconcile).toHaveBeenCalledWith("attempt-1");
   });

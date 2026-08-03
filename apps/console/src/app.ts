@@ -29,6 +29,11 @@ export type ConsoleApiConfig = {
     allowanceId?: string;
     successCooldownMs?: number;
   };
+  ownerService: {
+    profile: (owner: string) => Promise<OwnerProfile>;
+    onboard: (owner: string) => Promise<OwnerProfile>;
+    scope: (owner: string) => Promise<OwnerConsoleScope>;
+  };
   walletAdmin?: {
     prepareCreate: (input: AllowanceCreateInput) => Promise<{ operationId: string; authEntryXdr: string }>;
     submitCreate: (operationId: string, signedAuthEntryXdr: string) => Promise<AllowanceRecord>;
@@ -39,6 +44,21 @@ export type ConsoleApiConfig = {
     username: string;
     password: string;
   };
+};
+
+export type OwnerProfile = {
+  address: string;
+  treasury: string;
+  onboarded: boolean;
+  deploymentTransaction?: string;
+  fundingTransaction?: string;
+  fundingError?: string;
+};
+
+export type OwnerConsoleScope = {
+  agentAllowance: ConsoleApiConfig["agentAllowance"];
+  deployment: ConsoleDeployment;
+  walletAdmin: NonNullable<ConsoleApiConfig["walletAdmin"]>;
 };
 
 function credentialsMatch(authorization: string | undefined, username: string, password: string): boolean {
@@ -61,8 +81,8 @@ function credentialsMatch(authorization: string | undefined, username: string, p
 
 export function createConsoleApp(config: ConsoleApiConfig): Hono {
   const app = new Hono();
-  const challenges = new Map<string, { message: string; expiresAt: number }>();
-  const sessions = new Map<string, number>();
+  const challenges = new Map<string, { address: string; message: string; expiresAt: number }>();
+  const sessions = new Map<string, { address: string; expiresAt: number }>();
   const publicSuccesses = new Map<string, number>();
 
   app.use("*", async (context, next) => {
@@ -80,17 +100,19 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
   app.get("/health", (context) => context.json({ status: "ok", network: "stellar:testnet" }));
 
   app.get("/api/owner/challenge", (context) => {
+    const address = context.req.query("address")?.trim() ?? "";
+    try { Keypair.fromPublicKey(address); } catch { return context.json({ error: "INVALID_WALLET_ADDRESS" }, 400); }
     const nonce = randomBytes(24).toString("hex");
-    const message = `AgentAllowance owner login\nNonce: ${nonce}\nNetwork: stellar:testnet`;
-    challenges.set(nonce, { message, expiresAt: Date.now() + 120_000 });
-    return context.json({ message, nonce, admin: config.deployment.admin ?? null });
+    const message = `AgentAllowance owner login\nWallet: ${address}\nNonce: ${nonce}\nNetwork: stellar:testnet`;
+    challenges.set(nonce, { address, message, expiresAt: Date.now() + 120_000 });
+    return context.json({ message, nonce });
   });
 
   app.post("/api/owner/login", async (context) => {
     const body = await context.req.json<{ nonce: string; address: string; signature: string }>();
     const challenge = challenges.get(body.nonce);
     if (!challenge || challenge.expiresAt < Date.now()) return context.json({ error: "CHALLENGE_EXPIRED" }, 401);
-    if (!config.deployment.admin || body.address !== config.deployment.admin) return context.json({ error: "NOT_TREASURY_ADMIN" }, 403);
+    if (challenge.address !== body.address) return context.json({ error: "CHALLENGE_WALLET_MISMATCH" }, 401);
     try {
       const signature = Buffer.from(body.signature, "base64");
       if (!Keypair.fromPublicKey(body.address).verify(Buffer.from(challenge.message), signature)) {
@@ -99,7 +121,7 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     } catch { return context.json({ error: "INVALID_WALLET_SIGNATURE" }, 401); }
     challenges.delete(body.nonce);
     const session = randomBytes(32).toString("hex");
-    sessions.set(session, Date.now() + 15 * 60_000);
+    sessions.set(session, { address: body.address, expiresAt: Date.now() + 15 * 60_000 });
     const secure = context.req.header("X-Forwarded-Proto") === "https" || new URL(context.req.url).protocol === "https:"
       ? "; Secure"
       : "";
@@ -107,16 +129,16 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     return context.json({ ok: true, address: body.address });
   });
 
-  const ownerSessionValid = (cookie: string | undefined): boolean => {
+  const ownerSessionAddress = (cookie: string | undefined): string | undefined => {
     const value = cookie?.split(";").map((item) => item.trim()).find((item) => item.startsWith("agentallowance_owner="))?.slice(21);
-    const expires = value ? sessions.get(value) : undefined;
-    if (!expires) return false;
-    if (expires < Date.now()) { sessions.delete(value!); return false; }
-    return true;
+    const session = value ? sessions.get(value) : undefined;
+    if (!session) return undefined;
+    if (session.expiresAt < Date.now()) { sessions.delete(value!); return undefined; }
+    return session.address;
   };
 
   const requireOperator = async (context: Parameters<Parameters<typeof app.use>[1]>[0], next: () => Promise<void>) => {
-    if (ownerSessionValid(context.req.header("Cookie")) || credentialsMatch(
+    if (credentialsMatch(
       context.req.header("Authorization"),
       config.auth.username,
       config.auth.password,
@@ -125,11 +147,25 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     return context.json({ error: "UNAUTHORIZED" }, 401);
   };
 
+  const requireOwner = async (context: Parameters<Parameters<typeof app.use>[1]>[0], next: () => Promise<void>) => {
+    if (ownerSessionAddress(context.req.header("Cookie"))) { await next(); return; }
+    return context.json({ error: "OWNER_SESSION_REQUIRED" }, 401);
+  };
+
+  const currentOwner = (cookie: string | undefined): string => {
+    const address = ownerSessionAddress(cookie);
+    if (!address) throw new Error("Owner session is missing or expired");
+    return address;
+  };
+
   app.use("/api/allowances", requireOperator);
   app.use("/api/allowances/*", requireOperator);
-  app.use("/api/owner/allowances/*", requireOperator);
-  app.use("/api/demo/*", requireOperator);
-  app.use("/api/attempts/*", requireOperator);
+  app.use("/api/owner/profile", requireOwner);
+  app.use("/api/owner/onboard", requireOwner);
+  app.use("/api/owner/overview", requireOwner);
+  app.use("/api/owner/allowances/*", requireOwner);
+  app.use("/api/demo/*", requireOwner);
+  app.use("/api/attempts/*", requireOwner);
 
   app.onError((error, context) => {
     if (error instanceof AgentAllowanceError) {
@@ -143,28 +179,45 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     return context.json({ error: "INTERNAL_ERROR" }, 500);
   });
 
-  app.get("/api/overview", async (context) => {
+  const overview = async (agentAllowance: ConsoleApiConfig["agentAllowance"], deployment: ConsoleDeployment) => {
     const [allowances, balance, currentLedger] = await Promise.all([
-      config.agentAllowance.allowances.list(),
-      config.agentAllowance.treasury.balance(),
+      agentAllowance.allowances.list(),
+      agentAllowance.treasury.balance(),
       config.getLatestLedger(),
     ]);
-    return context.json({
+    return {
       network: "stellar:testnet",
-      treasury: config.deployment.smartAccount,
-      asset: config.deployment.token,
-      assetCode: config.deployment.assetCode ?? "XLM",
-      assetDecimals: config.deployment.assetDecimals ?? 7,
+      treasury: deployment.smartAccount,
+      asset: deployment.token,
+      assetCode: deployment.assetCode ?? "XLM",
+      assetDecimals: deployment.assetDecimals ?? 7,
       balanceAtomic: balance,
       balanceDisplay: atomicToDecimal(balance),
       currentLedger,
-      merchant: config.deployment.merchant,
+      merchant: deployment.merchant,
       facilitatorUrl: config.facilitatorUrl,
       availableSigners: config.availableSigners,
       allowances,
-      attempts: config.agentAllowance.listAttempts(100),
+      attempts: agentAllowance.listAttempts(100),
       refreshedAt: new Date().toISOString(),
-    });
+    };
+  };
+
+  app.get("/api/overview", async (context) => {
+    return context.json(await overview(config.agentAllowance, config.deployment));
+  });
+
+  app.get("/api/owner/profile", async (context) => {
+    return context.json(await config.ownerService.profile(currentOwner(context.req.header("Cookie"))));
+  });
+
+  app.post("/api/owner/onboard", async (context) => {
+    return context.json(await config.ownerService.onboard(currentOwner(context.req.header("Cookie"))), 201);
+  });
+
+  app.get("/api/owner/overview", async (context) => {
+    const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
+    return context.json(await overview(scope.agentAllowance, scope.deployment));
   });
 
   app.post("/api/public-demo/run", async (context) => {
@@ -226,12 +279,12 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
   });
 
   app.post("/api/owner/allowances/prepare", async (context) => {
-    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
+    const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
     const body = await context.req.json<{
       label: string; delegatedSigner: string; maxSpendAtomic: string;
       windowSeconds: number; recipient: string; expiresInSeconds: number;
     }>();
-    return context.json(await config.walletAdmin.prepareCreate({
+    return context.json(await scope.walletAdmin.prepareCreate({
       label: body.label,
       delegatedSigner: body.delegatedSigner,
       maxSpendAtomic: body.maxSpendAtomic,
@@ -242,23 +295,24 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
   });
 
   app.post("/api/owner/allowances/submit", async (context) => {
-    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
+    const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
     const body = await context.req.json<{ operationId: string; signedAuthEntryXdr: string }>();
-    return context.json(await config.walletAdmin.submitCreate(body.operationId, body.signedAuthEntryXdr), 201);
+    return context.json(await scope.walletAdmin.submitCreate(body.operationId, body.signedAuthEntryXdr), 201);
   });
 
   app.post("/api/owner/allowances/:id/revoke/prepare", async (context) => {
-    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
-    return context.json(await config.walletAdmin.prepareRevoke(context.req.param("id")));
+    const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
+    return context.json(await scope.walletAdmin.prepareRevoke(context.req.param("id")));
   });
 
   app.post("/api/owner/allowances/revoke/submit", async (context) => {
-    if (!config.walletAdmin) return context.json({ error: "WALLET_ADMIN_UNAVAILABLE" }, 503);
+    const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
     const body = await context.req.json<{ operationId: string; signedAuthEntryXdr: string }>();
-    return context.json(await config.walletAdmin.submitRevoke(body.operationId, body.signedAuthEntryXdr));
+    return context.json(await scope.walletAdmin.submitRevoke(body.operationId, body.signedAuthEntryXdr));
   });
 
   app.post("/api/demo/run", async (context) => {
+    const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
     const body = await context.req.json<{
       allowanceId: string;
       scenario: "success" | "over-limit" | "unapproved-recipient";
@@ -269,7 +323,7 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     try {
       const url = new URL("/premium", config.demoServiceUrl);
       url.searchParams.set("scenario", body.scenario);
-      const response = await config.agentAllowance.fetch(url.toString(), {
+      const response = await scope.agentAllowance.fetch(url.toString(), {
         allowanceId: body.allowanceId,
       });
       return context.json({ ok: true, resource: await response.json() });
@@ -282,7 +336,8 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
   });
 
   app.get("/api/attempts/:id/reconcile", async (context) => {
-    return context.json(await config.agentAllowance.reconcile(context.req.param("id")));
+    const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
+    return context.json(await scope.agentAllowance.reconcile(context.req.param("id")));
   });
 
   return app;
