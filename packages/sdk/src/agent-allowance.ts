@@ -74,6 +74,26 @@ function withUpdate(record: PaymentAttempt, update: Partial<PaymentAttempt>): Pa
   return { ...record, ...update, updatedAt: now() };
 }
 
+async function paidResponseFailure(response: Response): Promise<{
+  error?: string;
+  reason?: string;
+  detail: string;
+}> {
+  const fallback = `Paid request returned HTTP ${response.status}`;
+  try {
+    const body = await response.clone().json() as Record<string, unknown>;
+    const error = typeof body.error === "string" ? body.error : undefined;
+    const reason = typeof body.reason === "string" ? body.reason : undefined;
+    const detail = typeof body.detail === "string" ? body.detail : undefined;
+    const explanation = [error, reason, detail].filter((value, index, values) =>
+      Boolean(value) && values.indexOf(value) === index
+    ).join(": ");
+    return { error, reason, detail: explanation ? `${fallback}: ${explanation}` : fallback };
+  } catch {
+    return { detail: fallback };
+  }
+}
+
 export class AgentAllowance {
   readonly #config: AgentAllowanceConfig;
   readonly #store: EvidenceStore;
@@ -194,14 +214,10 @@ export class AgentAllowance {
     const requirements = selectExactPayment(challenge, this.#config.network);
     const attempt = await this.#reserveAttempt(options.allowanceId, url, requirements);
     const { paymentPayload, allowance } = await this.#authorizeAttempt(attempt, requirements);
-    const verified = await this.#facilitator.verify(paymentPayload, requirements, options.signal);
-    if (!verified.isValid) {
-      this.#failAttempt(attempt, "FACILITATOR_REJECTED", verified.invalidReason ?? "verify rejected");
-    }
     this.#store.putAttempt(withUpdate(attempt, {
       state: "SUBMITTED",
       decision: "PENDING",
-      facilitatorStatus: "verified",
+      facilitatorStatus: "merchant-verification-pending",
     }));
 
     let unlocked: Response;
@@ -221,7 +237,23 @@ export class AgentAllowance {
 
     const encodedReceipt = unlocked.headers.get("PAYMENT-RESPONSE");
     if (!encodedReceipt) {
-      this.#failAttempt(attempt, "RESOURCE_UNLOCK_FAILED", `Paid request returned HTTP ${unlocked.status}`);
+      const failure = await paidResponseFailure(unlocked);
+      if (failure.error === "FACILITATOR_REJECTED") {
+        this.#failAttempt(attempt, "FACILITATOR_REJECTED", failure.reason ?? failure.detail);
+      }
+      if (failure.error === "SETTLEMENT_FAILED") {
+        this.#store.putAttempt(withUpdate(attempt, {
+          state: "UNKNOWN",
+          decision: "PENDING",
+          reasonCode: "SETTLEMENT_UNKNOWN",
+          safeDetail: failure.detail,
+        }));
+        throw new AgentAllowanceError("SETTLEMENT_UNKNOWN", {
+          attemptId: attempt.attemptId,
+          detail: failure.detail,
+        });
+      }
+      this.#failAttempt(attempt, "RESOURCE_UNLOCK_FAILED", failure.detail);
     }
     const receipt = decodePaymentResponse(encodedReceipt);
     try {
