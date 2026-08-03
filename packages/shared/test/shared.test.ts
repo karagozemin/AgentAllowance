@@ -5,6 +5,7 @@ import {
   decodePaymentSignature,
   encodePaymentSignature,
   parsePaymentRequired,
+  serviceOrigin,
   type StellarPaymentPayload,
 } from "../src/index.js";
 
@@ -39,5 +40,13 @@ describe("shared protocol primitives", () => {
       payload: { transaction: "AAAA" },
     };
     expect(decodePaymentSignature(encodePaymentSignature(payload))).toEqual(payload);
+  });
+
+  test("normalizes private and public service origins", () => {
+    expect(serviceOrigin("agentallowance-facilitator")).toBe("http://agentallowance-facilitator:10000");
+    expect(serviceOrigin("http://127.0.0.1:3001/")).toBe("http://127.0.0.1:3001");
+    expect(serviceOrigin("agentallowance-demo-api.onrender.com")).toBe(
+      "https://agentallowance-demo-api.onrender.com",
+    );
   });
 });
