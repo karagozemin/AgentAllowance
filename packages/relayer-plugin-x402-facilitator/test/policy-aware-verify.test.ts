@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Keypair } from "@stellar/stellar-sdk";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { OPENZEPPELIN_SPENDING_LIMIT_V_0_7_2 } from "@agentallowance/facilitator-policy";
 import { verify } from "../src/stellar/verify.js";
 import * as policyHashes from "../src/stellar/policy-hashes.js";
@@ -75,6 +75,8 @@ function api(relayerAddress = Keypair.random().publicKey()) {
 }
 
 describe("policy-aware OpenZeppelin facilitator verification", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
   test("accepts the proven transfer plus pinned spending-limit event", async () => {
     vi.spyOn(policyHashes, "resolvePolicyWasmHashes").mockResolvedValue({
       [deployment.policy]: expectedWasmHash,
@@ -116,7 +118,7 @@ describe("policy-aware OpenZeppelin facilitator verification", () => {
       smartAccount: undefined,
       smartAccountWasmHash: "33".repeat(32),
     }];
-    vi.spyOn(policyHashes, "resolvePolicyWasmHashes").mockResolvedValue({
+    const hashSpy = vi.spyOn(policyHashes, "resolvePolicyWasmHashes").mockResolvedValue({
       [deployment.smartAccount]: "33".repeat(32),
       [deployment.policy]: expectedWasmHash,
     });
@@ -124,6 +126,7 @@ describe("policy-aware OpenZeppelin facilitator verification", () => {
       isValid: true,
       payer: deployment.smartAccount,
     });
+    expect(hashSpy).toHaveBeenCalledOnce();
   });
 
   test("rejects an otherwise valid payment from an unapproved smart-account WASM", async () => {

@@ -119,10 +119,9 @@ describe("stellar settle", () => {
   });
 
   test("settles via relayer when channel service not configured (v2)", async () => {
-    const verifySpy = vi.spyOn(verifyModule, "verify").mockResolvedValue({
-      isValid: true,
-      payer: "G-PAYER",
-    });
+    const verifySpy = vi.spyOn(verifyModule, "verify")
+      .mockResolvedValueOnce({ isValid: false, invalidReason: "unexpected_verify_error" })
+      .mockResolvedValueOnce({ isValid: true, payer: "G-PAYER" });
 
     vi.spyOn(utils, "scValToJsonArg").mockImplementation(() => ({
       address: "MOCK_ADDRESS",
@@ -139,7 +138,7 @@ describe("stellar settle", () => {
 
     const result = await settle(params as any, api, baseNetworkConfig);
 
-    expect(verifySpy).toHaveBeenCalled();
+    expect(verifySpy).toHaveBeenCalledTimes(2);
     expect(relayer.sendTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         operations: expect.any(Array),
@@ -209,7 +208,7 @@ describe("stellar settle", () => {
     expect(secondCallBody.params.getTransaction.transactionId).toBe("TX_ID_1");
     expect(secondCallBody.params.fundRelayerId).toBe("x402-fund");
 
-    expect(verifySpy).toHaveBeenCalled();
+    expect(verifySpy).toHaveBeenCalledOnce();
     expect(result.success).toBe(true);
     expect(result.transaction).toBe("HASH_CHANNEL");
   });
@@ -228,7 +227,7 @@ describe("stellar settle", () => {
 
     const result = await settle(params as any, makeApi(), baseNetworkConfig);
 
-    expect(verifySpy).toHaveBeenCalled();
+    expect(verifySpy).toHaveBeenCalledOnce();
     expect(result.success).toBe(false);
     expect(result.errorReason).toBe("unsupported_asset");
   });

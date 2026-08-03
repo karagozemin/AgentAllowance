@@ -19,6 +19,7 @@ import {
   NetworkConfig,
   SettleRequest,
   SettleResponse,
+  VerifyResponse,
 } from "../types.js";
 import type { PluginAPI, Relayer } from "@openzeppelin/relayer-sdk";
 import { ScVal, StellarTransactionResponse } from "@openzeppelin/relayer-sdk";
@@ -57,6 +58,24 @@ const CHANNEL_POLL_INTERVAL_MS = 1000;
 const BUFFER_MS = 2_000;
 const MAX_SUBMIT_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 1000;
+const VERIFY_RETRY_DELAYS_MS = [250, 750] as const;
+
+async function verifyForSettlement(
+  params: SettleRequest,
+  api: PluginAPI,
+  networkConfig: NetworkConfig,
+  deadlineMs: number,
+): Promise<VerifyResponse> {
+  let result = await verify(params, api, networkConfig);
+  for (const delayMs of VERIFY_RETRY_DELAYS_MS) {
+    if (result.isValid || result.invalidReason !== "unexpected_verify_error") return result;
+    if (Date.now() + delayMs >= deadlineMs) return result;
+    console.warn(`Transient settlement verification error; retrying in ${delayMs}ms`);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    result = await verify(params, api, networkConfig);
+  }
+  return result;
+}
 
 /**
  * Custom error for channel service failures that preserves the HTTP status and parsed response body.
@@ -448,7 +467,7 @@ export async function settle(
 
   try {
     // 1. Verify payment before settlement
-    const verifyResult = await verify(params, api, networkConfig);
+    const verifyResult = await verifyForSettlement(params, api, networkConfig, deadlineMs);
     if (!verifyResult.isValid) {
       return errorResponse(
         verifyResult.invalidReason!,

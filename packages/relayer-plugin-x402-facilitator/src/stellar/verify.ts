@@ -278,6 +278,7 @@ export async function verify(
     let policyManifest = networkConfig.policy_manifests?.find(
       (candidate) => candidate.smartAccount === fromAddress,
     );
+    let observedPolicyWasmHashes: Readonly<Record<string, string>> | undefined;
     if (!policyManifest) {
       const codePinnedProfiles = networkConfig.policy_manifests?.filter(
         (candidate) => !candidate.smartAccount && candidate.smartAccountWasmHash,
@@ -286,6 +287,7 @@ export async function verify(
         const hashes = await resolvePolicyWasmHashes(relayer, candidate, fromAddress);
         if (hashes[fromAddress]?.toLowerCase() === candidate.smartAccountWasmHash!.toLowerCase()) {
           policyManifest = candidate;
+          observedPolicyWasmHashes = hashes;
           break;
         }
       }
@@ -479,7 +481,8 @@ export async function verify(
     }
 
     if (policyManifest) {
-      const observedWasmHashes = await resolvePolicyWasmHashes(relayer, policyManifest, fromAddress);
+      const observedWasmHashes = observedPolicyWasmHashes ??
+        await resolvePolicyWasmHashes(relayer, policyManifest, fromAddress);
       const policyDecision = await verifyPolicyAwarePayment({
         x402Version: paymentPayload.x402Version,
         transactionXdr: stellarPayload.transaction,
