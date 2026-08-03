@@ -77,8 +77,6 @@ export function App() {
   const [result, setResult] = useState<string>();
   const [ownerAddress, setOwnerAddress] = useState<string>();
   const [ownerBusy, setOwnerBusy] = useState(false);
-  const operatorMode = window.location.pathname === "/operator";
-  const enterOperatorMode = () => window.location.assign("/operator");
   const connectOwner = async () => {
     setOwnerBusy(true); setError(undefined);
     try {
@@ -121,8 +119,8 @@ export function App() {
   }), [overview]);
 
   const run = async (scenario: "success" | "over-limit" | "unapproved-recipient") => {
-    if (!operatorMode) {
-      enterOperatorMode();
+    if (!ownerAddress) {
+      await connectOwner();
       return;
     }
     if (!selected) return;
@@ -169,12 +167,9 @@ export function App() {
             <button className="icon-button" title="Refresh chain state" aria-label="Refresh chain state" onClick={() => void refresh()}>
               <RefreshCw size={17} />
             </button>
-            {operatorMode ? (
-              ownerAddress ? <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button> :
-                <button className="primary" disabled={ownerBusy} onClick={() => void connectOwner()}><LogIn size={17} />{ownerBusy ? "Connecting..." : "Connect Freighter"}</button>
-            ) : (
-              <button className="primary" onClick={enterOperatorMode}><LogIn size={17} />Operator login</button>
-            )}
+            {ownerAddress
+              ? <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button>
+              : <button className="primary" disabled={ownerBusy} onClick={() => void connectOwner()}><LogIn size={17} />{ownerBusy ? "Connecting..." : "Connect Freighter"}</button>}
           </div>
         </header>
 
@@ -186,10 +181,6 @@ export function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onRevoke={async (allowance) => {
-              if (!operatorMode) {
-                enterOperatorMode();
-                return;
-              }
               if (!ownerAddress) {
                 await connectOwner();
                 return;

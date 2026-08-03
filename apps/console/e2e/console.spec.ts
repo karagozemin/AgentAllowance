@@ -101,7 +101,7 @@ test("renders overview and command center without viewport overflow", async ({ p
   await expect(page.getByRole("heading", { name: "Treasury overview" })).toBeVisible();
   await expect(page.getByText("0.47 XLM")).toBeVisible();
   await expect(page.getByText("Data agent")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Operator login" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect Freighter" })).toBeVisible();
   await expectNoViewportOverflow(page);
 
   await page.getByRole("button", { name: "Command Center" }).click();
@@ -111,12 +111,8 @@ test("renders overview and command center without viewport overflow", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("opens the complete allowance form without submitting", async ({ page }) => {
+test("keeps legacy operator route on the wallet-owner screen", async ({ page }) => {
   await page.goto("/operator");
-  await page.getByRole("button", { name: "Create allowance" }).click();
-  await expect(page.getByRole("dialog", { name: "Create delegated allowance" })).toBeVisible();
-  await expect(page.getByLabel("Delegated signer")).toHaveValue(signer);
-  await expect(page.getByLabel("Approved recipient")).toHaveValue(merchant);
-  await expect(page.getByRole("button", { name: "Create on Testnet" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect Freighter" })).toBeVisible();
   await expectNoViewportOverflow(page);
 });
