@@ -61,9 +61,9 @@ function setup() {
   const revoke = vi.fn(async () => ({ ...current, status: "REVOKED" as const }));
   const payFetch = vi.fn(async () => Response.json({ access: "PAID_AND_UNLOCKED" }));
   const reconcile = vi.fn(async () => attempt());
-  const prepareCreate = vi.fn(async () => ({ operationId: "op-create", authEntryXdr: "unsigned" }));
+  const prepareCreate = vi.fn(async () => ({ operationId: "op-create", authPreimageXdr: "preimage" }));
   const submitCreate = vi.fn(async () => current);
-  const prepareRevoke = vi.fn(async () => ({ operationId: "op-revoke", authEntryXdr: "unsigned" }));
+  const prepareRevoke = vi.fn(async () => ({ operationId: "op-revoke", authPreimageXdr: "preimage" }));
   const submitRevoke = vi.fn(async () => ({ ...current, status: "REVOKED" as const }));
   const agentAllowance = {
     allowances: {
@@ -221,7 +221,7 @@ describe("console API", () => {
     const submitted = await app.request("/api/owner/allowances/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ operationId: "op-create", signedAuthEntryXdr: "signed" }),
+      body: JSON.stringify({ operationId: "op-create", walletSignature: "signed" }),
     });
     expect(submitted.status).toBe(201);
     expect(submitCreate).toHaveBeenCalledWith("op-create", "signed");

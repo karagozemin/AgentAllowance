@@ -103,9 +103,9 @@ export function App() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Wallet login failed"); }
     finally { setOwnerBusy(false); }
   };
-  const signPreparedEntry = async (authEntryXdr: string): Promise<string> => {
+  const signPreparedAuthorization = async (authPreimageXdr: string): Promise<string> => {
     if (!ownerAddress) throw new Error("Connect your treasury owner wallet first");
-    const result = await signAuthEntry(authEntryXdr, {
+    const result = await signAuthEntry(authPreimageXdr, {
       address: ownerAddress,
       networkPassphrase: Networks.TESTNET,
     });
@@ -115,13 +115,13 @@ export function App() {
   };
   const createWithWallet = async (form: Parameters<typeof api.prepareWalletCreate>[0]) => {
     const prepared = await api.prepareWalletCreate(form);
-    const signedAuthEntryXdr = await signPreparedEntry(prepared.authEntryXdr);
-    return api.submitWalletCreate({ operationId: prepared.operationId, signedAuthEntryXdr });
+    const walletSignature = await signPreparedAuthorization(prepared.authPreimageXdr);
+    return api.submitWalletCreate({ operationId: prepared.operationId, walletSignature });
   };
   const revokeWithWallet = async (allowance: AllowanceRecord) => {
     const prepared = await api.prepareWalletRevoke(allowance.allowanceId);
-    const signedAuthEntryXdr = await signPreparedEntry(prepared.authEntryXdr);
-    return api.submitWalletRevoke({ operationId: prepared.operationId, signedAuthEntryXdr });
+    const walletSignature = await signPreparedAuthorization(prepared.authPreimageXdr);
+    return api.submitWalletRevoke({ operationId: prepared.operationId, walletSignature });
   };
 
   const refresh = async () => {

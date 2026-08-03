@@ -95,8 +95,9 @@ The full component, trust-boundary, authorization, and sequence diagrams are in
 The primary UI does not expose a shared password. Freighter login uses a wallet-bound, one-time,
 expiring challenge and a short-lived HttpOnly session. A first connection creates a deterministic
 C-account whose constructor admin is that wallet. Create and revoke use a second Freighter prompt to
-sign the exact prepared Soroban admin authorization entry; the backend validates owner, signer, nonce,
-expiry and invocation before enforcing simulation and fee-payer submission. Basic Auth remains an
+sign the exact Stellar authorization preimage; the backend validates owner, signer, network, nonce,
+expiry and invocation, constructs the Soroban auth entry, and runs enforcing simulation before
+fee-payer submission. Basic Auth remains an
 emergency maintenance fallback and cannot authenticate an owner endpoint.
 
 ## Pinned versions

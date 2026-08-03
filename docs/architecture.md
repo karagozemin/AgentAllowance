@@ -76,8 +76,9 @@ the connected wallet as rule `0` admin. A wallet can neither obtain another owne
 another owner's pending Freighter authorization operation.
 
 Create and revoke are two-phase operations. The server records the exact contract invocation and
-returns an unsigned delegated admin auth entry. Freighter signs that entry; the server then requires
-the session's exact admin address and unchanged nonce, expiry, invocation and auth tree before running
+returns the corresponding Stellar authorization `HashIdPreimage`. Freighter signs the preimage hash;
+the server verifies the 64-byte signature against the session's exact admin address, reconstructs the
+auth entry, and requires an unchanged network, nonce, expiry, invocation and auth tree before running
 enforcing simulation. Only the relayer/fee-payer envelope signature remains server-side. The legacy
 server-admin signer is retained as an explicit Testnet emergency fallback and is not used by the
 wallet-owner endpoints. Autonomous delegated payment signing is independent of this admin path and

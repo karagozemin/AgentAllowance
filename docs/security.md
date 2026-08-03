@@ -29,10 +29,12 @@ after an Ed25519 signature from the configured treasury admin and expires after 
 HttpOnly, SameSite cookie. A wallet-admin mutation uses a separate Soroban authorization signature.
 Prepared operations expire after sixty seconds and are deleted on first submission attempt.
 
-The backend rejects a signed admin entry if the signer address, nonce, signature-expiry ledger, root
-invocation, or invocation tree differs from the prepared template. It then runs enforcing-mode
-simulation before the fee payer signs and submits the envelope. A stolen web session alone therefore
-cannot create or revoke an allowance without a fresh Freighter signature.
+The backend gives Freighter the canonical Stellar authorization `HashIdPreimage` and accepts only a
+canonical 64-byte signature over its hash. It rejects the authorization if the signer address,
+network, nonce, signature-expiry ledger, root invocation, or invocation tree differs from the prepared
+template. It then reconstructs the auth entry and runs enforcing-mode simulation before the fee payer
+signs and submits the envelope. A stolen web session alone therefore cannot create or revoke an
+allowance without a fresh Freighter signature.
 
 ## Public demo controls
 
