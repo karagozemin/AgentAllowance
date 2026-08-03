@@ -46,7 +46,10 @@ function latestDeployment(): Deployment {
 const port = Number(process.env.PORT ?? process.env.DEMO_API_PORT ?? "3001");
 const publicBaseUrl = (process.env.DEMO_SERVICE_URL ?? process.env.RENDER_EXTERNAL_URL ?? `http://127.0.0.1:${port}`)
   .replace(/\/$/u, "");
-const deployment = process.env.TREASURY_CONTRACT ? {
+const hosted = process.env.NODE_ENV === "production" ||
+  Boolean(process.env.RENDER_SERVICE_ID) ||
+  Boolean(process.env.TREASURY_CONTRACT);
+const deployment = hosted ? {
   token: required("STELLAR_TOKEN_CONTRACT"),
   smartAccount: required("TREASURY_CONTRACT"),
   merchant: required("STELLAR_MERCHANT_ADDRESS"),
