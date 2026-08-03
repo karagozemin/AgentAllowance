@@ -101,6 +101,7 @@ test("renders overview and command center without viewport overflow", async ({ p
   await expect(page.getByRole("heading", { name: "Treasury overview" })).toBeVisible();
   await expect(page.getByText("0.47 XLM")).toBeVisible();
   await expect(page.getByText("Data agent")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Operator login" })).toBeVisible();
   await expectNoViewportOverflow(page);
 
   await page.getByRole("button", { name: "Command Center" }).click();
@@ -111,7 +112,7 @@ test("renders overview and command center without viewport overflow", async ({ p
 });
 
 test("opens the complete allowance form without submitting", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/operator");
   await page.getByRole("button", { name: "Create allowance" }).click();
   await expect(page.getByRole("dialog", { name: "Create delegated allowance" })).toBeVisible();
   await expect(page.getByLabel("Delegated signer")).toHaveValue(signer);
