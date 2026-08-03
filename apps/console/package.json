@@ -15,6 +15,7 @@
     "@agentallowance/sdk": "workspace:*",
     "@agentallowance/shared": "workspace:*",
     "@hono/node-server": "1.19.7",
+    "@stellar/freighter-api": "6.0.1",
     "@stellar/stellar-sdk": "16.2.0",
     "dotenv": "16.6.1",
     "hono": "4.10.7",
