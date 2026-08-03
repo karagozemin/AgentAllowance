@@ -1,0 +1,60 @@
+{
+  "fetchedFrom": "Stellar Testnet RPC via stellar tx fetch",
+  "transaction": "449866cb3e7b5ee4e42efa1c4387a822a494fb4df03c9fbba8c0d9445f00fa0d",
+  "status": "SUCCESS",
+  "ledger": 3956162,
+  "sourceAccount": "GBE7GQOIAG7JTM4ISI4UMWBVSICMEVTVIWRQDUCIIYBWTJAPMVWLTKJG",
+  "feeCharged": "490921",
+  "operation": {
+    "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "function": "transfer",
+    "from": "CAA2MNZ6Y7MKVY7BMGKH25W5NX4EAQDHRTMMOOXSLDKCIQAJMKIM34CR",
+    "to": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+    "amount": "100000"
+  },
+  "authorizationEntries": [
+    {
+      "address": "CAA2MNZ6Y7MKVY7BMGKH25W5NX4EAQDHRTMMOOXSLDKCIQAJMKIM34CR",
+      "signatureExpirationLedger": 3956172,
+      "contextRuleIds": [2],
+      "delegatedSigner": "GAO2CS7KBZS6DF4FOM4WJA3N2FUV4HSCVQI3BFJ4G233W7XJ7EBCAUKX",
+      "rootFunction": "transfer",
+      "subInvocations": []
+    },
+    {
+      "address": "GAO2CS7KBZS6DF4FOM4WJA3N2FUV4HSCVQI3BFJ4G233W7XJ7EBCAUKX",
+      "signatureExpirationLedger": 3956172,
+      "rootContract": "CAA2MNZ6Y7MKVY7BMGKH25W5NX4EAQDHRTMMOOXSLDKCIQAJMKIM34CR",
+      "rootFunction": "__check_auth",
+      "subInvocations": []
+    }
+  ],
+  "contractEvents": [
+    {
+      "contract": "CDB2YGZ5RL4R4K37DVBT5UGBKVLYEQJMLGPYZJUSRPS5XULH672QLJUY",
+      "topic": "spending_limit_enforced",
+      "payer": "CAA2MNZ6Y7MKVY7BMGKH25W5NX4EAQDHRTMMOOXSLDKCIQAJMKIM34CR",
+      "contextRuleId": 2,
+      "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "amount": "100000",
+      "totalSpentInPeriod": "100000"
+    },
+    {
+      "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "topic": "transfer",
+      "from": "CAA2MNZ6Y7MKVY7BMGKH25W5NX4EAQDHRTMMOOXSLDKCIQAJMKIM34CR",
+      "to": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "asset": "USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      "amount": "100000"
+    }
+  ],
+  "assertions": {
+    "relayerIsTransactionSource": true,
+    "relayerAbsentFromPaymentPartiesAndAuthorizationAddresses": true,
+    "twoAuthorizationEntries": true,
+    "noSubInvocations": true,
+    "onlyApprovedContractEvents": true,
+    "exactSep41Transfer": true
+  }
+}

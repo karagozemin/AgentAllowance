@@ -380,6 +380,31 @@ The sanitized evidence is under
 The preceding fail-closed attempt with an unactivated G-account is retained separately under
 [docs/evidence/testnet/2026-08-03T21-40-27Z-multi-wallet-onboarding-failed](docs/evidence/testnet/2026-08-03T21-40-27Z-multi-wallet-onboarding-failed/).
 
+## Hosted wallet-owner USDC settlement
+
+The wallet-owner treasury then completed the public hosted flow against the policy-aware facilitator.
+The approved request unlocked the resource, while subsequent over-limit and unapproved-recipient
+requests were rejected without another transfer.
+
+```text
+Payment amount        100000 atomic (0.0100000 USDC)
+Transaction           449866cb3e7b5ee4e42efa1c4387a822a494fb4df03c9fbba8c0d9445f00fa0d
+Ledger                3956162
+Treasury balance      100000 -> 0
+Merchant balance      200000 -> 300000
+Rule 2 spending state 0 -> 100000
+Resource result       PAID_AND_UNLOCKED
+Over-limit result     BUDGET_EXCEEDED
+Wrong-recipient result RECIPIENT_NOT_ALLOWED
+```
+
+Stellar RPC independently confirmed the two-entry delegated authorization, empty sub-invocation
+trees, exact SEP-41 transfer, and the single manifest-approved `spending_limit_enforced` event. The
+transaction is visible on
+[Stellar Expert](https://stellar.expert/explorer/testnet/tx/449866cb3e7b5ee4e42efa1c4387a822a494fb4df03c9fbba8c0d9445f00fa0d).
+The append-only receipt, state deltas, transaction facts, and envelope XDR are under
+[docs/evidence/testnet/2026-08-03T23-49-21Z-hosted-wallet-settlement](docs/evidence/testnet/2026-08-03T23-49-21Z-hosted-wallet-settlement/).
+
 ## Submission evidence
 
 The reviewer-facing evidence index is [docs/submission/evidence-index.md](docs/submission/evidence-index.md).

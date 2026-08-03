@@ -6,6 +6,8 @@ the durable record.
 
 | Claim | Evidence | What to inspect |
 | --- | --- | --- |
+| Hosted wallet-owner USDC flow works end to end | [Latest hosted evidence](../evidence/testnet/2026-08-03T23-49-21Z-hosted-wallet-settlement/public-demo.json) | `PAID_AND_UNLOCKED`, hosted receipt, two policy blocks, transaction hash and exact state deltas |
+| Facilitator accepts the policy-aware transaction without weakening validation | [RPC transaction facts](../evidence/testnet/2026-08-03T23-49-21Z-hosted-wallet-settlement/transaction-result.json) | two auth entries, no sub-invocations, exact transfer and the single approved policy event |
 | Official Testnet USDC x402 payment settled | [USDC settlement](../evidence/testnet/2026-08-03T20-19-52Z/settlement.json) | asset SAC, `isValid`, transaction hash, amount, exact state deltas |
 | Treasury paid the merchant | [USDC evidence README](../evidence/testnet/2026-08-03T20-19-52Z/README.md) | Stellar Expert link, balances, and ledger |
 | Public demo unlocks the protected resource | [Public demo USDC evidence](../evidence/testnet/2026-08-03T20-41-03Z/public-demo.json) | two blocks, paid retry, `PAID_AND_UNLOCKED`, receipt, and state deltas |
