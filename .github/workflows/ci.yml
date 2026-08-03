@@ -35,5 +35,5 @@ jobs:
           targets: wasm32v1-none
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --locked
-      - run: cargo install --locked stellar-cli --version 25.2.0
+      - uses: stellar/stellar-cli@v25.2.0
       - run: stellar contract build
