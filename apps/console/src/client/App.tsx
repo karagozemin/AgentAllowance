@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import type { AllowanceRecord, PaymentAttempt } from "@agentallowance/shared";
 import { api, type Overview } from "./api.js";
-import { getAddress, signAuthEntry, signMessage } from "@stellar/freighter-api";
+import { getNetworkDetails, requestAccess, signAuthEntry, signMessage } from "@stellar/freighter-api";
 import { Networks } from "@stellar/stellar-sdk";
 
 type View = "overview" | "command";
@@ -81,8 +81,11 @@ export function App() {
   const connectOwner = async () => {
     setOwnerBusy(true); setError(undefined);
     try {
-      const address = await getAddress();
+      const address = await requestAccess();
       if (address.error || !address.address) throw new Error(address.error?.message ?? "Freighter did not return an address");
+      const network = await getNetworkDetails();
+      if (network.error) throw new Error(network.error.message);
+      if (network.networkPassphrase !== Networks.TESTNET) throw new Error("Switch Freighter to Stellar Testnet before connecting");
       const challenge = await api.ownerChallenge();
       if (challenge.admin && challenge.admin !== address.address) throw new Error("Connected wallet is not the treasury admin");
       const signed = await signMessage(challenge.message, { address: address.address });
