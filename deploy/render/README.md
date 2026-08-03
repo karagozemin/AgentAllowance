@@ -94,6 +94,17 @@ SCENARIO=successful-payment pnpm --filter @agentallowance/testnet-cli run author
 pnpm --filter @agentallowance/testnet-cli run verify
 ```
 
+To verify a dynamically created allowance without changing the historical deployment record, select
+its rule and local delegate identity explicitly:
+
+```bash
+SCENARIO=successful-payment \
+ALLOWANCE_RULE_ID_OVERRIDE=2 \
+STELLAR_DELEGATE_IDENTITY_OVERRIDE=agentallowance-delegate-2 \
+pnpm --filter @agentallowance/testnet-cli run authorize
+pnpm --filter @agentallowance/testnet-cli run verify
+```
+
 Do not call `settle` during deployment verification. A further settlement requires an explicit
 review of the exact amount, token, payer, merchant, facilitator URL, and successful verify response.
 

@@ -45,6 +45,13 @@ const deployment = await readRunJson<Deployment>("deployment.json");
 const runDirectory = await latestRunDirectory();
 const scenario = selectedScenario();
 const directory = await createAttemptDirectory(runDirectory, scenario);
+const allowanceRuleId = process.env.ALLOWANCE_RULE_ID_OVERRIDE
+  ? Number(process.env.ALLOWANCE_RULE_ID_OVERRIDE)
+  : deployment.allowanceRuleId;
+if (!Number.isSafeInteger(allowanceRuleId) || allowanceRuleId < 0) {
+  throw new Error("ALLOWANCE_RULE_ID_OVERRIDE must be a non-negative safe integer");
+}
+const delegateIdentity = process.env.STELLAR_DELEGATE_IDENTITY_OVERRIDE ?? IDENTITIES.delegate;
 const paymentAmount = process.env.PAYMENT_AMOUNT_OVERRIDE
   ? BigInt(process.env.PAYMENT_AMOUNT_OVERRIDE)
   : scenario === "over-limit"
@@ -79,11 +86,12 @@ const payerEntry = recorded.find(
 );
 if (!payerEntry) throw new Error("Recording simulation did not return the smart-account entry");
 
-const delegateSecret = stellar(["keys", "secret", IDENTITIES.delegate], true);
+const delegateSecret = stellar(["keys", "secret", delegateIdentity], true);
+const delegateKeypair = Keypair.fromSecret(delegateSecret);
 const auth = await buildDelegatedAuthorizationEntries({
   smartAccountEntry: payerEntry,
-  delegate: Keypair.fromSecret(delegateSecret),
-  contextRuleIds: [deployment.allowanceRuleId],
+  delegate: delegateKeypair,
+  contextRuleIds: [allowanceRuleId],
   validUntilLedgerSeq: validUntil,
   networkPassphrase: NETWORK_PASSPHRASE,
 });
@@ -107,6 +115,8 @@ await writeJson(directory, "authorization.json", {
     token: deployment.token,
     payer: deployment.smartAccount,
   },
+  allowanceRuleId,
+  delegate: delegateKeypair.publicKey(),
   validUntil,
   currentLedger: latest.sequence,
   authDigest: auth.authDigest.toString("hex"),

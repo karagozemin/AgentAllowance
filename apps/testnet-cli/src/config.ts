@@ -44,4 +44,4 @@ export const PERIOD_LEDGERS = Number(process.env.PERIOD_LEDGERS ?? "17280");
 export const ALLOWANCE_LIFETIME_LEDGERS = Number(
   process.env.ALLOWANCE_LIFETIME_LEDGERS ?? "17280",
 );
-export const MAX_TIMEOUT_SECONDS = Number(process.env.MAX_TIMEOUT_SECONDS ?? "30");
+export const MAX_TIMEOUT_SECONDS = Number(process.env.MAX_TIMEOUT_SECONDS ?? "60");

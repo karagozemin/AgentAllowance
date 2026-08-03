@@ -1,0 +1,60 @@
+{
+  "network": "stellar:testnet",
+  "facilitatorUrl": "https://agentallowance-facilitator.onrender.com/api/v1/plugins/x402-facilitator/call",
+  "payment": {
+    "amountAtomic": "100000",
+    "token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+    "payer": "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
+    "merchant": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+    "delegatedSigner": "GAO2CS7KBZS6DF4FOM4WJA3N2FUV4HSCVQI3BFJ4G233W7XJ7EBCAUKX",
+    "contextRuleId": 2
+  },
+  "verify": {
+    "requestedAt": "2026-08-03T14:09:05.234Z",
+    "httpStatus": 200,
+    "response": {
+      "isValid": true,
+      "payer": "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX"
+    }
+  },
+  "settle": {
+    "requestedAt": "2026-08-03T14:09:22.749Z",
+    "httpStatus": 200,
+    "response": {
+      "success": true,
+      "transaction": "88c3e45841beb26665205ee15921c27bae886111e8a52feaed67bed951776b10",
+      "network": "stellar:testnet",
+      "payer": "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX"
+    }
+  },
+  "transaction": {
+    "hash": "88c3e45841beb26665205ee15921c27bae886111e8a52feaed67bed951776b10",
+    "status": "SUCCESS",
+    "ledger": 3949257,
+    "applicationOrder": 18
+  },
+  "state": {
+    "treasuryBalanceAtomic": {
+      "before": "4700000",
+      "after": "4600000",
+      "delta": "-100000"
+    },
+    "merchantBalanceAtomic": {
+      "before": "100000300000",
+      "after": "100000400000",
+      "delta": "100000"
+    },
+    "spendingLimit": {
+      "limitAtomic": "500000",
+      "spentBeforeAtomic": "100000",
+      "spentAfterAtomic": "200000",
+      "deltaAtomic": "100000",
+      "settlementLedger": 3949257
+    },
+    "recipientPolicy": {
+      "token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+      "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "unchanged": true
+    }
+  }
+}

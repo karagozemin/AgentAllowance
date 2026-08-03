@@ -194,6 +194,25 @@ Resource result       PAID_AND_UNLOCKED
 Sanitized append-only evidence is under `docs/evidence/testnet/2026-08-03T13-18-26Z/`. Earlier proof
 and Testnet artifact trees remain unchanged.
 
+## Hosted dynamic-rule settlement
+
+On 2026-08-03 the Render-hosted facilitator verified and settled rule `2` with the second delegated
+signer. A previous 30-second authorization expired before hosted verification and was not settled;
+the CLI now uses the same 60-second, 12-ledger bounded window as the demo API. The successful run
+returned `isValid: true` before settlement and produced:
+
+```text
+Payment amount        100000 stroops (0.01 XLM)
+Transaction           88c3e45841beb26665205ee15921c27bae886111e8a52feaed67bed951776b10
+Ledger                3949257
+Treasury balance      4700000 -> 4600000
+Merchant balance      100000300000 -> 100000400000
+Rule 2 spending state 100000 -> 200000
+```
+
+Sanitized evidence, including the rejected expiry attempt, hosted responses, and exact state deltas,
+is under `docs/evidence/testnet/2026-08-03T14-09-36Z/`.
+
 ## Scope and limitations
 
 The MVP uses the Testnet native XLM SAC from the source proof. The PRD's USDC target needs a separate
