@@ -187,7 +187,7 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
         attemptId: error.attemptId,
       }, 400);
     }
-    console.error(error instanceof Error ? error.message : "Unknown server error");
+    console.error("Unhandled console request error", error);
     return context.json({ error: "INTERNAL_ERROR" }, 500);
   });
 

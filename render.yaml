@@ -66,11 +66,8 @@ services:
         value: "10000"
       - key: NODE_ENV
         value: production
-      - key: X402_FACILITATOR_HOST
-        fromService:
-          type: web
-          name: agentallowance-facilitator
-          property: host
+      - key: X402_FACILITATOR_URL
+        value: https://agentallowance-facilitator.onrender.com/api/v1/plugins/x402-facilitator/call
       - key: X402_FACILITATOR_API_KEY
         fromService:
           type: web
@@ -107,21 +104,15 @@ services:
         value: "10000"
       - key: NODE_ENV
         value: production
-      - key: X402_FACILITATOR_HOST
-        fromService:
-          type: web
-          name: agentallowance-facilitator
-          property: host
+      - key: X402_FACILITATOR_URL
+        value: https://agentallowance-facilitator.onrender.com/api/v1/plugins/x402-facilitator/call
       - key: X402_FACILITATOR_API_KEY
         fromService:
           type: web
           name: agentallowance-facilitator
           envVarKey: API_KEY
       - key: DEMO_SERVICE_URL
-        fromService:
-          type: web
-          name: agentallowance-demo-api
-          property: host
+        value: https://agentallowance-demo-api.onrender.com
       - key: STELLAR_RPC_URL
         value: https://soroban-testnet.stellar.org
       - key: STELLAR_TOKEN_CONTRACT
