@@ -14,21 +14,17 @@ export default defineConfig({
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/karagozemin/AgentAllowance" },
       ],
-      editLink: {
-        baseUrl: "https://github.com/karagozemin/AgentAllowance/edit/main/apps/docs/",
-      },
       customCss: ["./src/styles/custom.css"],
       head: [
         { tag: "meta", attrs: { name: "theme-color", content: "#0a0d0b" } },
         { tag: "link", attrs: { rel: "icon", type: "image/png", href: "https://agentallowance-console.onrender.com/favicon.png" } },
       ],
-      lastUpdated: true,
       pagination: true,
       sidebar: [
         {
           label: "Start here",
           items: [
-            { label: "Overview", slug: "getting-started/overview" },
+            { label: "Overview", link: "/" },
             { label: "5-minute quickstart", slug: "getting-started/quickstart" },
             { label: "Core concepts", slug: "getting-started/core-concepts" },
           ],

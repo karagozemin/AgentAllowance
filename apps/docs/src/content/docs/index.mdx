@@ -1,12 +1,70 @@
 ---
-title: AgentAllowance Documentation
-description: Build policy-controlled x402 payments for autonomous agents on Stellar.
-template: splash
+title: AgentAllowance overview
+description: Understand the product, the problem it solves, and where policy enforcement happens.
 head:
   - tag: title
-    content: AgentAllowance Docs | Bounded agent payments on Stellar
+    content: AgentAllowance Overview | Developer Docs
 ---
 
-import DocsHome from "../../components/DocsHome.astro";
+AgentAllowance is a policy-controlled payment layer for autonomous agents on Stellar. A wallet owner
+creates a bounded allowance once. The delegated agent can then pay x402-protected services without
+asking the owner to sign every payment and without receiving the treasury key.
 
-<DocsHome />
+## The problem
+
+An autonomous agent needs enough authority to finish a task, but an unrestricted wallet key gives it
+far more authority than the task requires. Conventional API keys can restrict an HTTP service, but
+they do not constrain an on-chain transfer after the agent decides to pay.
+
+AgentAllowance places the boundary on a Stellar smart account:
+
+| Boundary | Example | Enforced by |
+| --- | --- | --- |
+| Asset | Official Testnet USDC only | Treasury call scope |
+| Recipient | One approved merchant | Recipient policy |
+| Budget | 0.10 USDC per rolling window | Spending-limit policy |
+| Time | Valid until a specific ledger | Context rule expiry |
+| Signer | One delegated agent key | Smart-account authorization |
+| Invocation | Exact SEP-41 transfer | Treasury and facilitator |
+
+## A concrete use case
+
+Consider a research agent that buys premium datasets during a report run. The owner approves a
+single data provider, a 1 USDC daily budget, and a two-hour permission lifetime. The agent can buy a
+0.01 USDC result immediately. A request for 1.01 USDC, a different provider, or a payment after expiry
+fails before settlement.
+
+The owner is not interrupted for the approved payment. The owner can revoke the allowance at any
+time through Freighter.
+
+## System roles
+
+| Role | Responsibility | Secret it controls |
+| --- | --- | --- |
+| Treasury owner | Creates and revokes allowances | Freighter wallet key |
+| Delegated agent | Authorizes payments inside one allowance | Delegated G-account key |
+| Smart-account treasury | Holds funds and enforces authorization | No exported private key |
+| Merchant | Issues x402 requirements and unlocks a resource | Challenge state |
+| Facilitator | Verifies policy evidence and settles | Relayer credential |
+| Fee sponsor | Pays transaction fees and Testnet onboarding funds | Fee-payer key |
+
+The smart C-account is the payment payer. The fee sponsor submits the transaction but cannot bypass
+the treasury's authorization rules.
+
+## Product surfaces
+
+- **Live dApp:** connect Freighter, deploy a deterministic treasury, create or revoke allowances,
+  run payment scenarios, and inspect evidence.
+- **Public SDK:** integrate allowance state, strict x402 payment, receipt binding, and reconciliation
+  into a trusted Node.js service.
+- **Policy-aware facilitator:** verify delegated smart-account payments without weakening canonical
+  x402 validation.
+- **Testnet CLI:** deploy contracts, build authorization, settle, inspect state, and archive evidence.
+
+## Current status
+
+AgentAllowance is a developer preview proven on Stellar Testnet with official Testnet USDC. The
+contracts and hosted system are unaudited. Use the current release for evaluation and integration
+work, not production custody.
+
+Next: [complete the 5-minute quickstart](/getting-started/quickstart/) or [open the live dApp](https://agentallowance-console.onrender.com/).
