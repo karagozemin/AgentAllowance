@@ -16,7 +16,8 @@
   <a href="https://agentallowance-console.onrender.com/"><strong>Launch Live Demo</strong></a> ·
   <a href="docs/submission/demo-runbook.md">90-second Judge Flow</a> ·
   <a href="docs/submission/evidence-index.md">Testnet Evidence</a> ·
-  <a href="docs/architecture.md">Architecture</a>
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/sdk/README.md">SDK Docs</a>
 </p>
 
 <p align="center">
@@ -24,6 +25,7 @@
   <img alt="Official Testnet USDC" src="https://img.shields.io/badge/USDC-Testnet-2775CA" />
   <img alt="x402 v2" src="https://img.shields.io/badge/x402-v2-1f8f75" />
   <img alt="Checks passing" src="https://img.shields.io/badge/checks-201_passing-20a878" />
+  <a href="https://www.npmjs.com/package/@agentallowance/sdk"><img alt="npm SDK" src="https://img.shields.io/badge/npm-%40agentallowance%2Fsdk-CB3837" /></a>
 </p>
 
 AgentAllowance lets a Stellar wallet owner give an AI agent a bounded payment permission instead of
@@ -126,8 +128,13 @@ The independent [SDK example](apps/x402-sdk-example/README.md) consumes only
 ## Integrate the SDK
 
 The Node.js SDK exposes allowance administration, strict x402 payment, receipt binding, evidence, and
-reconciliation through one typed API. Public `0.1.1` package manifests and tarballs are validated in a
-clean consumer project with:
+reconciliation through one typed API. Install the public `0.1.1` developer preview from npm:
+
+```bash
+npm install @agentallowance/sdk @stellar/stellar-sdk
+```
+
+Published manifests and tarballs are also validated in a clean consumer project with:
 
 ```bash
 pnpm test:sdk-package
@@ -136,8 +143,9 @@ pnpm pack:sdk
 
 Start with the [SDK quickstart](docs/sdk/quickstart.md), then use the
 [API](docs/sdk/api-reference.md), [typed errors](docs/sdk/errors.md), and
-[SDK security model](docs/sdk/security.md). Registry publication remains pending npm organization
-authentication; the independent workspace integration remains fully runnable today.
+[SDK security model](docs/sdk/security.md). The
+[npm package](https://www.npmjs.com/package/@agentallowance/sdk) and independent workspace integration
+expose the same typed surface.
 
 ## Security properties
 
@@ -207,7 +215,7 @@ Pinned versions, complete commands, and clean-runner results are in
 
 This MVP is proven with the official Stellar Testnet USDC SAC. Multi-asset rules, MPP,
 `recipient_policy_enforced`, threshold administration, and production custody are intentionally out
-of scope. Public npm artifacts are prepared as a P1 developer preview. This is unaudited Testnet
+of scope. Public npm artifacts are published as a P1 developer preview. This is unaudited Testnet
 software.
 
 The repository application and contract code is MIT-licensed. The upstream-derived
