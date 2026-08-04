@@ -106,10 +106,13 @@ allowances. Multiple delegate secrets may be comma-separated. Never put the Open
 secret into these variables. `STELLAR_ADMIN_SECRET` is an optional emergency Testnet fallback and
 should be omitted from the primary wallet-owner deployment.
 
-`OWNER_INITIAL_FUNDING_ATOMIC` controls the one-time Testnet onboarding faucet. The Blueprint uses
-`100000` atomic USDC so a newly created treasury can demonstrate one small payment. Set it to `0` to
-disable sponsored funding. `OWNER_TREASURY_VERSION` must change only when deliberately moving owners
-to a new deterministic deployment profile.
+`OWNER_TREASURY_TARGET_BALANCE_ATOMIC` controls the bounded Testnet onboarding faucet. The Blueprint
+uses `1000000` atomic USDC (`0.1 USDC`), enough to exercise the initial allowance across multiple
+small payments. New treasuries are funded to that target, while previously deployed treasuries are
+topped up by only the missing amount on their first connection after a console start. Set it to `0`
+to disable sponsored funding. The legacy `OWNER_INITIAL_FUNDING_ATOMIC` variable remains a fallback
+for older deployments. `OWNER_TREASURY_VERSION` must change only when deliberately moving owners to
+a new deterministic deployment profile.
 
 The Blueprint pins `STELLAR_TOKEN_CONTRACT` to the official Testnet USDC SAC
 `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` and pins the spending/recipient policy

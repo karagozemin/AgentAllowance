@@ -167,7 +167,7 @@ services:
         value: "720"
       - key: OWNER_ALLOWANCE_LIFETIME_LEDGERS
         value: "17280"
-      - key: OWNER_INITIAL_FUNDING_ATOMIC
-        value: "100000"
+      - key: OWNER_TREASURY_TARGET_BALANCE_ATOMIC
+        value: "1000000"
       - key: OWNER_TREASURY_VERSION
         value: treasury-v1
