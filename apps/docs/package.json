@@ -1,0 +1,20 @@
+{
+  "name": "@agentallowance/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --host 127.0.0.1",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 127.0.0.1",
+    "typecheck": "ASTRO_TELEMETRY_DISABLED=1 astro check",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@astrojs/starlight": "0.41.6",
+    "@playwright/test": "1.58.2",
+    "astro": "7.1.6",
+    "typescript": "5.9.3"
+  }
+}

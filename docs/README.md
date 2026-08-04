@@ -2,6 +2,10 @@
 
 Start with the path that matches what you are trying to do.
 
+The full searchable developer portal is available at
+[agentallowance-docs.onrender.com](https://agentallowance-docs.onrender.com/). The Markdown files in
+this directory remain the repository-level technical and evidence archive.
+
 ## Use the product
 
 - [Live demo](https://agentallowance-console.onrender.com/)

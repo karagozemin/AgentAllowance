@@ -14,6 +14,7 @@
 
 <p align="center">
   <a href="https://agentallowance-console.onrender.com/"><strong>Launch Live Demo</strong></a> ·
+  <a href="https://agentallowance-docs.onrender.com/"><strong>Developer Docs</strong></a> ·
   <a href="docs/submission/demo-runbook.md">90-second Judge Flow</a> ·
   <a href="docs/submission/evidence-index.md">Testnet Evidence</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
@@ -24,7 +25,7 @@
   <img alt="Stellar Testnet" src="https://img.shields.io/badge/Stellar-Testnet-111111" />
   <img alt="Official Testnet USDC" src="https://img.shields.io/badge/USDC-Testnet-2775CA" />
   <img alt="x402 v2" src="https://img.shields.io/badge/x402-v2-1f8f75" />
-  <img alt="Checks passing" src="https://img.shields.io/badge/checks-201_passing-20a878" />
+  <img alt="Checks passing" src="https://img.shields.io/badge/checks-209_passing-20a878" />
   <a href="https://www.npmjs.com/package/@agentallowance/sdk"><img alt="npm SDK" src="https://img.shields.io/badge/npm-%40agentallowance%2Fsdk-CB3837" /></a>
 </p>
 
@@ -196,10 +197,12 @@ Pinned versions, complete commands, and clean-runner results are in
 | `packages/relayer-plugin-x402-facilitator/` | OpenZeppelin Relayer x402 integration |
 | `apps/x402-demo-api/` | HTTP 402 merchant and protected resource |
 | `apps/console/` | Public judge demo and wallet-owner application |
+| `apps/docs/` | Searchable standalone developer documentation |
 | `apps/testnet-cli/` | Reproducible Testnet deployment and evidence commands |
 
 ## Documentation
 
+- [Standalone developer portal](https://agentallowance-docs.onrender.com/)
 - [Documentation hub](docs/README.md)
 - [SDK quickstart and API](docs/sdk/README.md)
 - [90-second demo runbook](docs/submission/demo-runbook.md)

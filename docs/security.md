@@ -25,8 +25,9 @@ contract/facilitator audits.
 ## Wallet-owner administration
 
 The owner login challenge is random, single-use, and valid for two minutes. A session is created only
-after an Ed25519 signature from the configured treasury admin and expires after fifteen minutes in an
-HttpOnly, SameSite cookie. A wallet-admin mutation uses a separate Soroban authorization signature.
+after an Ed25519 signature from the configured treasury admin and expires after 24 hours in a signed,
+HttpOnly, SameSite cookie. The stateless signature survives a service restart and rejects modified
+session payloads. A wallet-admin mutation uses a separate Soroban authorization signature.
 Prepared operations expire after sixty seconds and are deleted on first submission attempt.
 
 The backend gives Freighter the canonical Stellar authorization `HashIdPreimage` and accepts only a
