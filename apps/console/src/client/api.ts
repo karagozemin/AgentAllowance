@@ -39,6 +39,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   overview: () => request<Overview>("/api/overview"),
   ownerOverview: () => request<Overview>("/api/owner/overview"),
+  ownerSession: () => request<
+    { authenticated: false } | { authenticated: true; profile: OwnerProfile }
+  >("/api/owner/session"),
   ownerChallenge: (address: string) => request<{ message: string; nonce: string }>(
     `/api/owner/challenge?address=${encodeURIComponent(address)}`,
   ),

@@ -106,6 +106,7 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
   const [ownerAddress, setOwnerAddress] = useState<string>();
   const [ownerProfile, setOwnerProfile] = useState<OwnerProfile>();
   const [ownerBusy, setOwnerBusy] = useState(false);
+  const [ownerSessionChecked, setOwnerSessionChecked] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
 
   const connectOwner = async () => {
@@ -126,7 +127,6 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
       setOwnerAddress(address.address);
       const profile = await api.ownerProfile();
       setOwnerProfile(profile);
-      if (profile.onboarded) setOverview(await api.ownerOverview());
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Wallet login failed"); }
     finally { setOwnerBusy(false); }
   };
@@ -165,7 +165,19 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
       if (!value.allowances.some((item) => item.allowanceId === selectedId)) setSelectedId(value.allowances[0]?.allowanceId ?? "");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to load console data"); }
   };
-  useEffect(() => { void refresh(); }, [ownerProfile?.onboarded]);
+  useEffect(() => {
+    let active = true;
+    void api.ownerSession()
+      .then((session) => {
+        if (!active || !session.authenticated) return;
+        setOwnerAddress(session.profile.address);
+        setOwnerProfile(session.profile);
+      })
+      .catch(() => undefined)
+      .finally(() => { if (active) setOwnerSessionChecked(true); });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => { if (ownerSessionChecked) void refresh(); }, [ownerSessionChecked, ownerProfile?.onboarded]);
 
   const onboardOwner = async () => {
     setOwnerBusy(true); setError(undefined);

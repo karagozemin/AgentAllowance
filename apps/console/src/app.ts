@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import {
   AgentAllowanceError,
@@ -94,8 +94,21 @@ function decodeWalletSignature(value: string): Buffer {
 export function createConsoleApp(config: ConsoleApiConfig): Hono {
   const app = new Hono();
   const challenges = new Map<string, { address: string; message: string; expiresAt: number }>();
-  const sessions = new Map<string, { address: string; expiresAt: number }>();
   const publicSuccesses = new Map<string, number>();
+  const ownerSessionTtlSeconds = 24 * 60 * 60;
+  const ownerSessionKey = createHash("sha256")
+    .update(`agentallowance-owner-session\0${config.auth.password}`)
+    .digest();
+
+  const createOwnerSession = (address: string): string => {
+    const payload = Buffer.from(JSON.stringify({
+      address,
+      expiresAt: Date.now() + ownerSessionTtlSeconds * 1_000,
+      nonce: randomBytes(16).toString("hex"),
+    })).toString("base64url");
+    const signature = createHmac("sha256", ownerSessionKey).update(payload).digest("base64url");
+    return `${payload}.${signature}`;
+  };
 
   app.use("*", async (context, next) => {
     context.header("X-Content-Type-Options", "nosniff");
@@ -132,21 +145,38 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
       }
     } catch { return context.json({ error: "INVALID_WALLET_SIGNATURE" }, 401); }
     challenges.delete(body.nonce);
-    const session = randomBytes(32).toString("hex");
-    sessions.set(session, { address: body.address, expiresAt: Date.now() + 15 * 60_000 });
+    const session = createOwnerSession(body.address);
     const secure = context.req.header("X-Forwarded-Proto") === "https" || new URL(context.req.url).protocol === "https:"
       ? "; Secure"
       : "";
-    context.header("Set-Cookie", `agentallowance_owner=${session}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=900`);
+    context.header("Set-Cookie", `agentallowance_owner=${session}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${ownerSessionTtlSeconds}`);
     return context.json({ ok: true, address: body.address });
   });
 
   const ownerSessionAddress = (cookie: string | undefined): string | undefined => {
     const value = cookie?.split(";").map((item) => item.trim()).find((item) => item.startsWith("agentallowance_owner="))?.slice(21);
-    const session = value ? sessions.get(value) : undefined;
-    if (!session) return undefined;
-    if (session.expiresAt < Date.now()) { sessions.delete(value!); return undefined; }
-    return session.address;
+    if (!value) return undefined;
+    const separator = value.lastIndexOf(".");
+    if (separator < 1) return undefined;
+    const payload = value.slice(0, separator);
+    const suppliedSignature = value.slice(separator + 1);
+    const expectedSignature = createHmac("sha256", ownerSessionKey).update(payload).digest("base64url");
+    if (!timingSafeEqual(
+      createHash("sha256").update(suppliedSignature).digest(),
+      createHash("sha256").update(expectedSignature).digest(),
+    )) return undefined;
+    try {
+      const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+        address?: unknown;
+        expiresAt?: unknown;
+      };
+      if (typeof session.address !== "string" || typeof session.expiresAt !== "number" ||
+          !Number.isSafeInteger(session.expiresAt) || session.expiresAt < Date.now()) return undefined;
+      Keypair.fromPublicKey(session.address);
+      return session.address;
+    } catch {
+      return undefined;
+    }
   };
 
   const requireOperator = async (context: Parameters<Parameters<typeof app.use>[1]>[0], next: () => Promise<void>) => {
@@ -169,6 +199,15 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     if (!address) throw new Error("Owner session is missing or expired");
     return address;
   };
+
+  app.get("/api/owner/session", async (context) => {
+    const address = ownerSessionAddress(context.req.header("Cookie"));
+    if (!address) return context.json({ authenticated: false as const });
+    return context.json({
+      authenticated: true as const,
+      profile: await config.ownerService.profile(address),
+    });
+  });
 
   app.use("/api/allowances", requireOperator);
   app.use("/api/allowances/*", requireOperator);
