@@ -24,8 +24,8 @@ OpenZeppelin facilitator base  100ccec1dcb597544a215f749796870e03c63c45
 | SDK and product flows | **39** | Treasury administration, merchant `402` lifecycle, console owner operations, funding, sessions, and reconciliation |
 | Auth, payer, and shared primitives | **9** | Authorization construction, receipt binding, reason codes, and deterministic payload handling |
 | Soroban contracts | **3** | Spending limit, recipient restriction, expiry, and revoke behavior |
-| Desktop/mobile browser E2E | **8** | Public demo, wallet-owner routes, session restoration, and the full Freighter allowance transaction lifecycle |
-| **Total** | **209** | Unit, integration, contract, and browser-level verification |
+| Desktop/mobile browser E2E | **11** | Public demo, wallet-owner routes, session restoration, Freighter lifecycle, docs navigation, search, and responsive layout |
+| **Total** | **212** | Unit, integration, contract, and browser-level verification |
 
 The TypeScript tests consume the compatibility proof's real transaction and simulation XDR. They
 confirm that the policy-aware validator accepts the proven payment while rejecting unapproved code,
@@ -43,6 +43,7 @@ pnpm test
 cargo test --workspace
 stellar contract build
 pnpm --filter @agentallowance/console test:e2e
+pnpm --filter @agentallowance/docs test:e2e
 pnpm --filter @agentallowance/x402-sdk-example typecheck
 ```
 
