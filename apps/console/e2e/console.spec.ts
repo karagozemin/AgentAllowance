@@ -5,6 +5,10 @@ const merchant = "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ";
 const owner = "GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA";
 
 async function mockOverview(page: Page): Promise<void> {
+  await page.route("**/api/owner/session", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ authenticated: false }),
+  }));
   await page.route("**/api/overview", (route) => route.fulfill({
     contentType: "application/json",
     body: JSON.stringify({
