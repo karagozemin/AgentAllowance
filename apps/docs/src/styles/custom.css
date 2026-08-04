@@ -74,6 +74,7 @@ body { background: var(--sl-color-bg); }
   }
 
   .right-sidebar-container {
+    --sl-sidebar-width: var(--agentallowance-toc-width);
     width: max(
       var(--agentallowance-toc-width),
       calc(var(--agentallowance-toc-width) + (100% - var(--sl-content-width) - var(--agentallowance-toc-width)) / 2)
