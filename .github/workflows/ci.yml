@@ -23,6 +23,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm test:sdk-package
       - run: bash scripts/check-secrets.sh
       - run: pnpm --filter @agentallowance/console test:e2e
 

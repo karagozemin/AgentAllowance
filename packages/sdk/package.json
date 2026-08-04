@@ -1,23 +1,45 @@
 {
   "name": "@agentallowance/sdk",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.1",
+  "description": "Bounded, autonomous x402 payments for AI agents on Stellar.",
+  "license": "MIT",
   "type": "module",
+  "keywords": ["stellar", "soroban", "x402", "ai-agents", "smart-account", "payments"],
+  "files": ["dist", "README.md", "LICENSE"],
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
     }
   },
+  "engines": { "node": ">=22.18.0" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karagozemin/AgentAllowance.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/karagozemin/AgentAllowance#readme",
+  "bugs": { "url": "https://github.com/karagozemin/AgentAllowance/issues" },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      }
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@agentallowance/shared": "workspace:*",
-    "@agentallowance/stellar-smart-account-auth": "workspace:*",
-    "@agentallowance/x402-payer": "workspace:*",
+    "@agentallowance/shared": "workspace:^",
+    "@agentallowance/stellar-smart-account-auth": "workspace:^",
+    "@agentallowance/x402-payer": "workspace:^",
     "@stellar/stellar-sdk": "16.2.0"
   },
   "devDependencies": {

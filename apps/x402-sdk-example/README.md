@@ -4,6 +4,9 @@ This is the independent integration promised by the PRD. It is a small TypeScrip
 the public `@agentallowance/sdk` API against the real x402 demo service. It does not import console
 internals, the testnet CLI, or facilitator implementation code.
 
+The example resolves the workspace package inside this repository. The exact package artifacts used
+for an external npm consumer are validated by `pnpm test:sdk-package`.
+
 ## Run
 
 From the repository root:

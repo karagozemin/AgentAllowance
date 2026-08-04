@@ -6,6 +6,7 @@ target/
 .env.local
 artifacts/local/
 artifacts/testnet/
+artifacts/npm/
 data/
 test-results/
 playwright-report/
