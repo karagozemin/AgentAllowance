@@ -2,9 +2,12 @@ services:
   - type: web
     name: agentallowance-docs
     runtime: static
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @agentallowance/docs build
+    buildCommand: pnpm --filter @agentallowance/docs build
     staticPublishPath: ./apps/docs/dist
     autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: "22.18.0"
 
   - type: keyvalue
     name: agentallowance-redis
