@@ -349,7 +349,7 @@ function PaymentLab({ overview, selectedId, onSelect, busy, result, onRun }: {
   return <div className="console-content lab-content">
     <section className="lab-header">
       <div><span>BOUNDED EXECUTION</span><h2>Run a real x402 payment path.</h2><p>Each scenario builds a fresh delegated authorization and reaches the policy boundary.</p></div>
-      <label><span>ACTIVE ALLOWANCE</span><select value={selectedId} disabled={activeAllowances.length === 0} onChange={(event) => onSelect(event.target.value)}>{activeAllowances.map((item) => <option key={item.allowanceId} value={item.allowanceId}>Rule #{item.allowanceId} · {item.label}</option>)}</select></label>
+      <label><span>ALLOWANCE</span><select value={selectedId} disabled={activeAllowances.length === 0} onChange={(event) => onSelect(event.target.value)}>{overview.allowances.map((item) => <option key={item.allowanceId} value={item.allowanceId} disabled={item.status !== "ACTIVE"}>Rule #{item.allowanceId} · {item.label}{item.status === "ACTIVE" ? "" : ` · ${item.status.toLowerCase()}`}</option>)}</select></label>
     </section>
 
     <div className="lab-grid">
