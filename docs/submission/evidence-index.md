@@ -4,6 +4,9 @@ This index is intentionally reviewer-first. Every claim points to an append-only
 repeatable command. Testnet state is volatile; transaction hashes and the sanitized response files are
 the durable record.
 
+For the chronological XLM, dynamic-rule, official USDC, and wallet-owner settlement narrative, see
+the [Testnet settlement history](../evidence/settlement-history.md).
+
 | Claim | Evidence | What to inspect |
 | --- | --- | --- |
 | Hosted wallet-owner USDC flow works end to end | [Latest hosted evidence](../evidence/testnet/2026-08-03T23-49-21Z-hosted-wallet-settlement/public-demo.json) | `PAID_AND_UNLOCKED`, hosted receipt, two policy blocks, transaction hash and exact state deltas |
