@@ -255,7 +255,12 @@ h1, h2, h3, p { margin-top: 0; letter-spacing: 0; }
 
 .spin { animation: spin .8s linear infinite; }
 
+.console-title-transition { animation: console-title-in .22s cubic-bezier(.22, 1, .36, 1) both; }
+.console-view-transition { animation: console-view-in .26s cubic-bezier(.22, 1, .36, 1) both; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes console-title-in { from { opacity: .35; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes console-view-in { from { opacity: 0; transform: translateY(6px) scale(.998); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes live-pulse { 0%, 100% { opacity: .55; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
 @keyframes line-charge { 0%, 15% { inset-inline: 0 100%; } 55% { inset-inline: 0 0; } 100% { inset-inline: 100% 0; } }
 @keyframes node-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }

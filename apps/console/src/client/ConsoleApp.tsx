@@ -233,7 +233,7 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
     <main className="console-main">
       <header className="console-topbar">
         <button className="mobile-menu" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu /></button>
-        <div className="topbar-title">
+        <div key={view} className="topbar-title console-title-transition">
           <span>{view === "overview" ? "CONTROL PLANE" : view === "lab" ? "EXECUTION ENVIRONMENT" : "AUDIT TRAIL"}</span>
           <h1>{view === "overview" ? "Treasury overview" : view === "lab" ? "Payment lab" : "On-chain evidence"}</h1>
         </div>
@@ -249,12 +249,14 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
       {!overview ? <div className="console-loading"><img src="/agentallowance-logo.jpg" alt="" /><LoaderCircle className="spin" /><span>Reading smart-account state</span></div> : <>
         {!ownerAddress && <div className="public-banner"><div><Radio /><span><strong>Public proof mode</strong><small>Inspect and run bounded Testnet scenarios. Connect Freighter to operate your own treasury.</small></span></div><button onClick={() => void connectOwner()}>Switch to my treasury <ArrowRight /></button></div>}
         {ownerAddress && !ownerProfile?.onboarded && <OnboardingPanel ownerAddress={ownerAddress} busy={ownerBusy} onOnboard={onboardOwner} />}
-        {view === "overview" && <OverviewView overview={overview} totals={totals} selectedId={selectedId} onSelect={setSelectedId} onRevoke={(allowance) => {
-          if (!ownerAddress || !ownerProfile?.onboarded) { void connectOwner(); return; }
-          setPendingRevoke(allowance);
-        }} busy={busy} onOpenLab={() => setView("lab")} />}
-        {view === "lab" && <PaymentLab overview={overview} selectedId={selectedId} onSelect={setSelectedId} busy={busy} result={result} onRun={run} />}
-        {view === "evidence" && <EvidenceView overview={overview} />}
+        <div key={view} className="console-view-transition">
+          {view === "overview" && <OverviewView overview={overview} totals={totals} selectedId={selectedId} onSelect={setSelectedId} onRevoke={(allowance) => {
+            if (!ownerAddress || !ownerProfile?.onboarded) { void connectOwner(); return; }
+            setPendingRevoke(allowance);
+          }} busy={busy} onOpenLab={() => navigate("lab")} />}
+          {view === "lab" && <PaymentLab overview={overview} selectedId={selectedId} onSelect={setSelectedId} busy={busy} result={result} onRun={run} />}
+          {view === "evidence" && <EvidenceView overview={overview} />}
+        </div>
       </>}
     </main>
 
