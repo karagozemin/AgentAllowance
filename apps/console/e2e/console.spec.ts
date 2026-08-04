@@ -194,6 +194,7 @@ test("moves from the product landing into the live control plane", async ({ page
   await expect(page.getByRole("heading", { name: "AgentAllowance" })).toBeVisible();
   await expect(page.getByText("Autonomy without unlimited authority.")).toBeVisible();
   await expect(page.getByText("Paid. Blocked. Verifiable.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Docs", exact: true })).toHaveAttribute("href", "https://agentallowance-docs.onrender.com/");
   await expectNoViewportOverflow(page);
 
   await page.getByRole("button", { name: /Enter the dApp/ }).click();
