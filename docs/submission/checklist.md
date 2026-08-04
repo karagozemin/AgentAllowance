@@ -13,7 +13,8 @@ Testnet record; planned work is not marked complete.
 - [x] Freighter-signed create/revoke Soroban authorization path
 - [x] Asset-aware console labels and atomic-unit display
 - [x] Fresh official Testnet USDC deploy, block cases, and settlement evidence
-- [ ] Live Freighter create and revoke transaction evidence
+- [x] Live Freighter create and revoke transaction evidence archived in
+  [`owner-onboarding.json`](../evidence/testnet/2026-08-03T21-41-46-267Z-multi-wallet-onboarding/owner-onboarding.json)
 
 ## Developer experience
 
@@ -32,11 +33,12 @@ Testnet record; planned work is not marked complete.
 - [x] Root MIT license and fork-specific AGPL license
 - [x] TypeScript, Rust, production build, secret scan, desktop/mobile E2E
 - [x] Final USDC transaction links and balance deltas added to README
+- [ ] Hosted demo deployment confirmed on the final release commit
 - [ ] Final video URL
 - [ ] Clean release tag matching the deployed commit
 
 ## Current external blockers
 
-The official Testnet USDC funding and local Relayer gates are complete. Remaining external release
-inputs are a real Freighter create/revoke capture, the final hosted deployment configuration, the
-recorded demo URL, and the release tag.
+The official Testnet USDC funding, local Relayer gates, and Freighter create/revoke evidence are
+complete. Remaining external release inputs are confirmation that the hosted demo runs the final
+commit, the recorded demo URL, and the release tag.
