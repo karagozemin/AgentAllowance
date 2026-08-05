@@ -1,0 +1,29 @@
+{
+  "createdAt": "2026-08-05T00:04:29.223Z",
+  "network": "stellar:testnet",
+  "action": "create-public-demo-allowance",
+  "treasury": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+  "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+  "delegatedSigner": "GAO2CS7KBZS6DF4FOM4WJA3N2FUV4HSCVQI3BFJ4G233W7XJ7EBCAUKX",
+  "merchant": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+  "contextRuleId": 2,
+  "validUntilLedger": 4492028,
+  "spendingLimit": "1000000",
+  "windowLedgers": 720,
+  "transactionHash": "e335f2da8c17ddb5ad9c4aaa2a6872f17622d41ee14b67a249d03fb6c298a697",
+  "verifiedAt": "2026-08-05T00:04:53.947Z",
+  "verifiedState": {
+    "treasuryBalance": "4800000",
+    "merchantBalance": "600000",
+    "spendingPolicy": {
+      "cached_total_spent": "0",
+      "period_ledgers": 720,
+      "spending_history": [],
+      "spending_limit": "1000000"
+    },
+    "recipientPolicy": {
+      "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+    }
+  }
+}

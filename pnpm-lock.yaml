@@ -105,6 +105,9 @@ importers:
 
   apps/testnet-cli:
     dependencies:
+      '@agentallowance/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@agentallowance/stellar-smart-account-auth':
         specifier: workspace:*
         version: link:../../packages/stellar-smart-account-auth
