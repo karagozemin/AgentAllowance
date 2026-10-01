@@ -75,8 +75,9 @@ function optionalKeypair(alias: string): Keypair | undefined {
 }
 
 function keypairFromSecret(name: string): Keypair {
+  const secret = required(name);
   try {
-    return Keypair.fromSecret(required(name));
+    return Keypair.fromSecret(secret);
   } catch {
     throw new Error(`${name} is not a valid Stellar secret`);
   }
@@ -85,13 +86,13 @@ function keypairFromSecret(name: string): Keypair {
 const hosted = process.env.NODE_ENV === "production" ||
   Boolean(process.env.RENDER_SERVICE_ID) ||
   Boolean(process.env.TREASURY_CONTRACT);
-const admin = process.env.STELLAR_ADMIN_SECRET
+const admin = hosted || process.env.STELLAR_ADMIN_SECRET
   ? keypairFromSecret("STELLAR_ADMIN_SECRET")
   : Keypair.fromSecret(stellarSecret(process.env.STELLAR_ADMIN_IDENTITY ?? "agentallowance-admin"));
-const source = process.env.STELLAR_FEE_PAYER_SECRET
+const source = hosted || process.env.STELLAR_FEE_PAYER_SECRET
   ? keypairFromSecret("STELLAR_FEE_PAYER_SECRET")
   : Keypair.fromSecret(stellarSecret(process.env.STELLAR_FEE_PAYER_IDENTITY ?? "agentallowance-fee-payer"));
-const delegates = process.env.STELLAR_DELEGATE_SECRETS
+const delegates = hosted || process.env.STELLAR_DELEGATE_SECRETS
   ? required("STELLAR_DELEGATE_SECRETS").split(",").map((secret, index) => {
       try { return Keypair.fromSecret(secret.trim()); } catch {
         throw new Error(`STELLAR_DELEGATE_SECRETS entry ${index + 1} is not a valid Stellar secret`);
