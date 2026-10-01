@@ -14,10 +14,10 @@ transaction source, fee payer, and settlement engine. The adapter preserves the 
 and bearer API key, and does not replace or relax verifier logic.
 
 The Blueprint also defines two Node services. `agentallowance-demo-api` is the public x402-protected
-merchant resource. `agentallowance-console` is the authenticated operator UI and server-side signer
-boundary. Both use SQLite under `/tmp`; that index is lost when a free instance is replaced or
-redeployed, while contract rules, balances, and settlement transactions remain on Testnet. This is an
-explicit demo limitation, not production persistence.
+merchant resource. `agentallowance-console` provides a public read-only dashboard and an authenticated
+operator mode backed by the server-side signer boundary. Both use SQLite under `/tmp`; that index is
+lost when a free instance is replaced or redeployed, while contract rules, balances, and settlement
+transactions remain on Testnet. This is an explicit demo limitation, not production persistence.
 
 ## Security boundary
 
@@ -27,8 +27,9 @@ explicit demo limitation, not production persistence.
   smart-account payer, merchant, delegated signer, or an address-auth entry.
 - The static config accepts only the pinned Testnet asset and manifest-pinned
   `spending_limit_enforced` event. Recipient-policy payment events remain unsupported.
-- The console leaves only `/health` public. Every UI asset and `/api/*` route requires server-side
-  HTTP Basic Auth over Render HTTPS; credentials are never bundled into React.
+- The console exposes its UI, `/health`, and `/api/overview` publicly. `/operator` and every endpoint
+  that creates, revokes, reconciles, or pays require server-side HTTP Basic Auth over Render HTTPS;
+  credentials are never bundled into React.
 - The demo API has no admin signer. The console alone receives admin, transaction-source, and
   delegated-signer secrets.
 
@@ -166,17 +167,23 @@ curl --fail --show-error https://agentallowance-demo-api.onrender.com/health
 curl --fail --show-error https://agentallowance-console.onrender.com/health
 ```
 
-The console root and API must reject anonymous requests, then accept the configured operator:
+The dashboard and overview must be public. Operator mode must reject anonymous requests, then accept
+the configured operator:
 
 ```bash
 curl --output /dev/null --write-out '%{http_code}\n' \
   https://agentallowance-console.onrender.com/
-curl --fail --show-error --user 'operator:<CONSOLE_AUTH_PASSWORD>' \
+curl --fail --show-error \
   https://agentallowance-console.onrender.com/api/overview
+curl --output /dev/null --write-out '%{http_code}\n' \
+  https://agentallowance-console.onrender.com/operator
+curl --fail --show-error --user 'operator:<CONSOLE_AUTH_PASSWORD>' \
+  https://agentallowance-console.onrender.com/operator
 ```
 
-The first command must print `401`. Open the console URL and enter the same credentials. With an empty
-ephemeral database, create a fresh allowance before running a scenario. Confirm its delegated signer,
+The public root and overview must return `200`; anonymous `/operator` must return `401`. Open the
+console URL, select **Operator login**, and enter the same credentials. With an empty ephemeral
+database, create a fresh allowance before running a scenario. Confirm its delegated signer,
 recipient, amount, rolling window, and expiry in the form. `Over limit` and `Unapproved recipient`
 must be rejected without settlement. `Approved payment` performs a real Testnet `/verify` and
 `/settle`; run it only when another 100000-stroop Testnet payment is intended.

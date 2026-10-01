@@ -85,34 +85,47 @@ function setup() {
 }
 
 describe("console API", () => {
-  test("leaves health public and protects every other route", async () => {
+  test("keeps the dashboard public and protects operator routes", async () => {
     const { app } = setup();
     app.get("/", (context) => context.text("console"));
+    app.get("/operator", (context) => context.text("operator"));
     expect((await app.request("/health")).status).toBe(200);
-    expect((await app.request("/")).status).toBe(401);
-    const missing = await app.request("/api/overview");
+    expect((await app.request("/")).status).toBe(200);
+    expect((await app.request("/api/overview")).status).toBe(200);
+    const missing = await app.request("/operator");
     expect(missing.status).toBe(401);
     expect(missing.headers.get("WWW-Authenticate")).toContain("Basic");
-    expect((await app.request("/api/overview", {
+    expect((await app.request("/operator", {
       headers: { Authorization: "Basic malformed" },
     })).status).toBe(401);
-    expect((await app.request("/api/overview", {
+    expect((await app.request("/operator", {
       headers: {
         Authorization: `Basic ${Buffer.from("operator:wrong-password").toString("base64")}`,
       },
     })).status).toBe(401);
-    expect((await app.request("/api/overview", {
-      headers: { Authorization: authorization },
-    })).status).toBe(200);
-    expect((await app.request("/", {
+    expect((await app.request("/operator", {
       headers: { Authorization: authorization },
     })).status).toBe(200);
   });
 
+  test("rejects unauthenticated state changes before calling the SDK", async () => {
+    const { app, create, payFetch } = setup();
+    expect((await app.request("/api/allowances", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    })).status).toBe(401);
+    expect((await app.request("/api/demo/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    })).status).toBe(401);
+    expect(create).not.toHaveBeenCalled();
+    expect(payFetch).not.toHaveBeenCalled();
+  });
+
   test("returns treasury, allowance and evidence state without signer secrets", async () => {
-    const response = await setup().app.request("/api/overview", {
-      headers: { Authorization: authorization },
-    });
+    const response = await setup().app.request("/api/overview");
     expect(response.status).toBe(200);
     const raw = await response.text();
     expect(JSON.parse(raw)).toMatchObject({

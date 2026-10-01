@@ -61,7 +61,7 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
 
   app.get("/health", (context) => context.json({ status: "ok", network: "stellar:testnet" }));
 
-  app.use("*", async (context, next) => {
+  const requireOperator = async (context: Parameters<Parameters<typeof app.use>[1]>[0], next: () => Promise<void>) => {
     if (!credentialsMatch(
       context.req.header("Authorization"),
       config.auth.username,
@@ -71,7 +71,13 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
       return context.json({ error: "UNAUTHORIZED" }, 401);
     }
     await next();
-  });
+  };
+
+  app.use("/operator", requireOperator);
+  app.use("/api/allowances", requireOperator);
+  app.use("/api/allowances/*", requireOperator);
+  app.use("/api/demo/*", requireOperator);
+  app.use("/api/attempts/*", requireOperator);
 
   app.onError((error, context) => {
     if (error instanceof AgentAllowanceError) {

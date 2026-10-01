@@ -83,8 +83,9 @@ pnpm --filter @agentallowance/console start
 
 Open `http://127.0.0.1:3000`. The console creates and revokes real Testnet rules, runs approved,
 over-limit and unapproved-recipient x402 scenarios, and correlates decisions with receipts and Stellar
-Expert links. The browser prompts for `CONSOLE_AUTH_USERNAME` and `CONSOLE_AUTH_PASSWORD`. The merchant
-API listens on `http://127.0.0.1:3001`.
+Expert links. The merchant API listens on `http://127.0.0.1:3001`. The overview is public; the browser
+prompts for `CONSOLE_AUTH_USERNAME` and `CONSOLE_AUTH_PASSWORD` only after the operator enters
+`/operator` to create, revoke, reconcile, or run payment scenarios.
 
 Dynamic facilitator profiles do not enumerate rule IDs. They pin the smart account,
 recipient-policy contract/WASM and OpenZeppelin spending-policy contract/WASM, then resolve the signed

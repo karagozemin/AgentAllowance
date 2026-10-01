@@ -11,6 +11,7 @@ import {
   Gauge,
   LayoutDashboard,
   LoaderCircle,
+  LogIn,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -73,6 +74,8 @@ export function App() {
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<string>();
+  const operatorMode = window.location.pathname === "/operator";
+  const enterOperatorMode = () => window.location.assign("/operator");
 
   const refresh = async () => {
     setError(undefined);
@@ -97,6 +100,10 @@ export function App() {
   }), [overview]);
 
   const run = async (scenario: "success" | "over-limit" | "unapproved-recipient") => {
+    if (!operatorMode) {
+      enterOperatorMode();
+      return;
+    }
     if (!selected) return;
     setBusy(scenario);
     setError(undefined);
@@ -141,7 +148,11 @@ export function App() {
             <button className="icon-button" title="Refresh chain state" aria-label="Refresh chain state" onClick={() => void refresh()}>
               <RefreshCw size={17} />
             </button>
-            <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button>
+            {operatorMode ? (
+              <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button>
+            ) : (
+              <button className="primary" onClick={enterOperatorMode}><LogIn size={17} />Operator login</button>
+            )}
           </div>
         </header>
 
@@ -153,6 +164,10 @@ export function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onRevoke={async (allowance) => {
+              if (!operatorMode) {
+                enterOperatorMode();
+                return;
+              }
               if (!window.confirm(`Revoke allowance #${allowance.allowanceId} for ${allowance.delegatedSigner}?`)) return;
               setBusy(`revoke-${allowance.allowanceId}`);
               try { await api.revoke(allowance); } catch (reason) {
