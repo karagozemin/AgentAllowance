@@ -63,7 +63,7 @@ https://<render-service>.onrender.com/api/v1/plugins/x402-facilitator/call
 Wait for the service to report `Live`, then check the unauthenticated health endpoint:
 
 ```bash
-curl --fail --show-error https://<render-service>.onrender.com/health
+curl --fail --show-error https://<render-service>.onrender.com/api/v1/health
 ```
 
 Copy the generated `API_KEY` from Render's Environment page into `.env.local` together with the
