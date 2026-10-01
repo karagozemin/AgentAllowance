@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const signer = "GAO2CS7KBZS6DF4FOM4WJA3N2FUV4HSCVQI3BFJ4G233W7XJ7EBCAUKX";
 const merchant = "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ";
+const owner = "GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA";
 
 async function mockOverview(page: Page): Promise<void> {
   await page.route("**/api/overview", (route) => route.fulfill({
@@ -90,6 +91,80 @@ async function expectNoViewportOverflow(page: Page): Promise<void> {
   });
 }
 
+async function mockWalletOwner(page: Page): Promise<void> {
+  await page.addInitScript(({ walletAddress }) => {
+    window.addEventListener("message", (event) => {
+      const request = event.data as { source?: string; messageId?: number; type?: string };
+      if (request.source !== "FREIGHTER_EXTERNAL_MSG_REQUEST" || !request.messageId) return;
+      const response: Record<string, unknown> = {
+        source: "FREIGHTER_EXTERNAL_MSG_RESPONSE",
+        messagedId: request.messageId,
+      };
+      if (request.type === "REQUEST_ACCESS") response.publicKey = walletAddress;
+      if (request.type === "REQUEST_ALLOWED_STATUS") response.isAllowed = true;
+      if (request.type === "REQUEST_NETWORK_DETAILS") response.networkDetails = {
+        network: "TESTNET",
+        networkUrl: "https://horizon-testnet.stellar.org",
+        networkPassphrase: "Test SDF Network ; September 2015",
+        sorobanRpcUrl: "https://soroban-testnet.stellar.org",
+      };
+      if (request.type === "SUBMIT_BLOB") {
+        response.signedBlob = "wallet-session-signature";
+        response.signerAddress = walletAddress;
+      }
+      if (request.type === "SUBMIT_AUTH_ENTRY") {
+        response.signedAuthEntry = "wallet-auth-entry";
+        response.signerAddress = walletAddress;
+      }
+      window.setTimeout(() => window.postMessage(response, window.location.origin), request.type === "SUBMIT_AUTH_ENTRY" ? 350 : 0);
+    });
+  }, { walletAddress: owner });
+
+  const ownerOverview = {
+    network: "stellar:testnet",
+    treasury: "CBCXCPFP6EBWEYYQS7DWXFYQ3ZP24MNUFAIMFBI5ADTCXEWJTSBD27BU",
+    asset: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    assetCode: "USDC",
+    assetDecimals: 7,
+    balanceAtomic: "1000000",
+    balanceDisplay: "0.1",
+    currentLedger: 3967000,
+    merchant,
+    facilitatorUrl: "https://agentallowance-facilitator.onrender.com",
+    availableSigners: [signer],
+    allowances: [],
+    attempts: [],
+    refreshedAt: "2026-08-04T12:00:00.000Z",
+  };
+  const created = {
+    allowanceId: "3",
+    label: "Research agent",
+    network: "stellar:testnet",
+    treasuryContract: ownerOverview.treasury,
+    assetContract: ownerOverview.asset,
+    delegatedSigner: signer,
+    maxSpendAtomic: "500000",
+    spentAtomic: "0",
+    windowLedgers: 720,
+    allowedRecipients: [merchant],
+    validUntilLedger: 3984280,
+    contextRuleId: 3,
+    createTxHash: "6f07e5383589056c30b0c15fde90da28efb9f25f22a1f0c2aeb5040252fda032",
+    status: "ACTIVE",
+    createdAt: "2026-08-04T12:00:00.000Z",
+    updatedAt: "2026-08-04T12:00:00.000Z",
+  };
+  await page.route("**/api/owner/challenge?*", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ message: "Sign in", nonce: "nonce" }) }));
+  await page.route("**/api/owner/login", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, address: owner }) }));
+  await page.route("**/api/owner/profile", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ address: owner, treasury: ownerOverview.treasury, onboarded: true }) }));
+  await page.route("**/api/owner/overview", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(ownerOverview) }));
+  await page.route("**/api/owner/allowances/prepare", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ operationId: "create-3", authPreimageXdr: "auth-preimage" }) }));
+  await page.route("**/api/owner/allowances/submit", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(created) });
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await mockOverview(page);
 });
@@ -126,5 +201,24 @@ test("keeps legacy operator route on the wallet-owner screen", async ({ page }) 
   await page.goto("/operator");
   await expect(page.getByRole("heading", { name: "Treasury overview" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Freighter" })).toBeVisible();
+  await expectNoViewportOverflow(page);
+});
+
+test("shows the full Freighter allowance transaction lifecycle", async ({ page }) => {
+  await mockWalletOwner(page);
+  await page.goto("/app");
+  await page.getByRole("button", { name: "Connect Freighter" }).click();
+  await expect(page.getByRole("button", { name: "New allowance" })).toBeVisible();
+  await page.getByRole("button", { name: "New allowance" }).click();
+  await expect(page.getByRole("heading", { name: "New agent allowance" })).toBeVisible();
+  await expect(page.getByText("POLICY PREVIEW")).toBeVisible();
+  await expect(page.locator(".allowance-review-grid").getByText("0.05 USDC")).toBeVisible();
+
+  await page.getByRole("button", { name: /Authorize with Freighter/ }).click();
+  await expect(page.getByRole("heading", { name: "Approve in Freighter" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Committing allowance" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Research agent is live." })).toBeVisible();
+  await expect(page.getByText("ALLOWANCE #3 · ACTIVE")).toBeVisible();
+  await expect(page.getByText("6f07e5383589...fda032")).toBeVisible();
   await expectNoViewportOverflow(page);
 });

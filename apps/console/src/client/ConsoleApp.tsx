@@ -24,7 +24,6 @@ import {
   ShieldCheck,
   ShieldX,
   TestTube2,
-  TimerReset,
   WalletCards,
   X,
   Zap,
@@ -36,6 +35,7 @@ import { Networks } from "@stellar/stellar-sdk";
 
 type ConsoleView = "overview" | "lab" | "evidence";
 type Scenario = "success" | "over-limit" | "unapproved-recipient";
+type WalletOperationPhase = "preparing" | "signing" | "submitting";
 
 function short(value: string, front = 7): string {
   return value.length > 18 ? `${value.slice(0, front)}...${value.slice(-6)}` : value;
@@ -139,15 +139,21 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
     return result.signedAuthEntry;
   };
 
-  const createWithWallet = async (form: Parameters<typeof api.prepareWalletCreate>[0]) => {
+  const createWithWallet = async (form: Parameters<typeof api.prepareWalletCreate>[0], onPhase: (phase: WalletOperationPhase) => void) => {
+    onPhase("preparing");
     const prepared = await api.prepareWalletCreate(form);
+    onPhase("signing");
     const walletSignature = await signPreparedAuthorization(prepared.authPreimageXdr);
+    onPhase("submitting");
     return api.submitWalletCreate({ operationId: prepared.operationId, walletSignature });
   };
 
-  const revokeWithWallet = async (allowance: AllowanceRecord) => {
+  const revokeWithWallet = async (allowance: AllowanceRecord, onPhase: (phase: WalletOperationPhase) => void) => {
+    onPhase("preparing");
     const prepared = await api.prepareWalletRevoke(allowance.allowanceId);
+    onPhase("signing");
     const walletSignature = await signPreparedAuthorization(prepared.authPreimageXdr);
+    onPhase("submitting");
     return api.submitWalletRevoke({ operationId: prepared.operationId, walletSignature });
   };
 
@@ -240,13 +246,8 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
       </>}
     </main>
 
-    {createOpen && overview && <CreateAllowanceDialog overview={overview} onClose={() => setCreateOpen(false)} onCreated={async () => { setCreateOpen(false); await refresh(); }} createAllowance={createWithWallet} />}
-    {pendingRevoke && <RevokeDialog allowance={pendingRevoke} busy={busy === `revoke-${pendingRevoke.allowanceId}`} onClose={() => setPendingRevoke(undefined)} onConfirm={async () => {
-      setBusy(`revoke-${pendingRevoke.allowanceId}`); setError(undefined);
-      try { await revokeWithWallet(pendingRevoke); setPendingRevoke(undefined); }
-      catch (reason) { setError(reason instanceof Error ? reason.message : "Revoke failed"); }
-      finally { setBusy(undefined); await refresh(); }
-    }} />}
+    {createOpen && overview && <CreateAllowanceDialog overview={overview} onClose={() => setCreateOpen(false)} onCreated={async (record) => { await refresh(); setSelectedId(record.allowanceId); setView("overview"); }} createAllowance={createWithWallet} />}
+    {pendingRevoke && <RevokeDialog allowance={pendingRevoke} onClose={() => setPendingRevoke(undefined)} onRevoked={refresh} revokeAllowance={revokeWithWallet} />}
   </div>;
 }
 
@@ -381,39 +382,138 @@ function AttemptFeed({ attempts, assetCode, assetDecimals, live = false }: { att
   </section>;
 }
 
+function durationLabel(seconds: number): string {
+  if (seconds < 3600) return `${seconds / 60} minutes`;
+  if (seconds < 86400) return `${seconds / 3600} hour${seconds === 3600 ? "" : "s"}`;
+  return `${seconds / 86400} day${seconds === 86400 ? "" : "s"}`;
+}
+
+function TransactionProgress({ phase, mode }: { phase: WalletOperationPhase; mode: "create" | "revoke" }) {
+  const activeIndex = phase === "preparing" ? 0 : phase === "signing" ? 1 : 2;
+  const content = mode === "create" ? {
+    title: phase === "preparing" ? "Building bounded authority" : phase === "signing" ? "Approve in Freighter" : "Committing allowance",
+    detail: phase === "preparing"
+      ? "Encoding the signer, recipient, budget and expiry into one authorization."
+      : phase === "signing"
+        ? "Review the exact policy in Freighter. Your treasury key never leaves the wallet."
+        : "Signature accepted. The sponsored transaction is being submitted to Stellar Testnet.",
+    steps: ["Build policy", "Wallet approval", "Stellar finality"],
+  } : {
+    title: phase === "preparing" ? "Loading on-chain rule" : phase === "signing" ? "Approve revocation" : "Removing authority",
+    detail: phase === "preparing"
+      ? "Resolving the exact allowance and preparing its admin authorization."
+      : phase === "signing"
+        ? "Confirm the revocation in Freighter. No other allowance will be changed."
+        : "Signature accepted. Stellar is removing this agent's future spending authority.",
+    steps: ["Resolve rule", "Wallet approval", "Stellar finality"],
+  };
+  return <div className={`transaction-progress ${mode}`} role="status" aria-live="polite">
+    <div className="transaction-grid" />
+    <div className="transaction-focus">
+      <span className="transaction-orbit">{phase === "submitting" ? <Zap /> : <Fingerprint />}</span>
+      <small><i />STELLAR TESTNET · LIVE OPERATION</small>
+      <h3>{content.title}</h3>
+      <p>{content.detail}</p>
+    </div>
+    <div className="transaction-steps">
+      {content.steps.map((step, index) => <div className={index < activeIndex ? "done" : index === activeIndex ? "active" : ""} key={step}>
+        <span>{index < activeIndex ? <Check /> : index === activeIndex ? <LoaderCircle className="spin" /> : index + 1}</span>
+        <strong>{step}</strong>
+      </div>)}
+    </div>
+    <div className="transaction-assurance"><ShieldCheck />Fee sponsored · exact invocation only · no treasury key shared</div>
+  </div>;
+}
+
 function CreateAllowanceDialog({ overview, onClose, onCreated, createAllowance }: {
   overview: Overview;
   onClose: () => void;
-  onCreated: () => Promise<void>;
-  createAllowance: (form: { label: string; delegatedSigner: string; maxSpendAtomic: string; windowSeconds: number; recipient: string; expiresInSeconds: number }) => Promise<AllowanceRecord>;
+  onCreated: (record: AllowanceRecord) => Promise<void>;
+  createAllowance: (form: { label: string; delegatedSigner: string; maxSpendAtomic: string; windowSeconds: number; recipient: string; expiresInSeconds: number }, onPhase: (phase: WalletOperationPhase) => void) => Promise<AllowanceRecord>;
 }) {
   const [form, setForm] = useState({ label: "Research agent", delegatedSigner: overview.availableSigners[1] ?? overview.availableSigners[0] ?? "", maxSpendAtomic: "500000", windowSeconds: 3600, recipient: overview.merchant, expiresInSeconds: 3600 });
-  const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<"form" | WalletOperationPhase | "success">("form");
   const [error, setError] = useState<string>();
-  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+  const [created, setCreated] = useState<AllowanceRecord>();
+  const busy = phase !== "form" && phase !== "success";
+  const budget = /^\d+$/.test(form.maxSpendAtomic) ? amount(form.maxSpendAtomic, overview.assetDecimals) : "0";
+  const submit = async () => {
+    setError(undefined);
+    try {
+      const record = await createAllowance(form, setPhase);
+      setCreated(record);
+      setPhase("success");
+      await onCreated(record);
+    } catch (reason) {
+      setPhase("form");
+      setError(reason instanceof Error ? reason.message : "Create failed");
+    }
+  };
+  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
     <div className="dialog allowance-dialog" role="dialog" aria-modal="true" aria-labelledby="create-title">
-      <div className="dialog-header"><div><span>ON-CHAIN ADMIN ACTION</span><h2 id="create-title">Create allowance</h2><p>Freighter will sign the exact rule before it reaches Stellar.</p></div><button className="dialog-close" title="Close" aria-label="Close" onClick={onClose}><X /></button></div>
-      <div className="form-grid">
-        <label className="field full"><span>AGENT LABEL</span><input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} /></label>
-        <label className="field full"><span>DELEGATED SIGNER</span><select value={form.delegatedSigner} onChange={(e) => setForm({ ...form, delegatedSigner: e.target.value })}>{overview.availableSigners.map((value) => <option key={value} value={value}>{value}</option>)}</select><small>Signer secrets never enter the browser.</small></label>
-        <label className="field"><span>BUDGET · ATOMIC UNITS</span><input inputMode="numeric" value={form.maxSpendAtomic} onChange={(e) => setForm({ ...form, maxSpendAtomic: e.target.value })} /><small>{/^\d+$/.test(form.maxSpendAtomic) ? amount(form.maxSpendAtomic, overview.assetDecimals) : "0"} {overview.assetCode}</small></label>
-        <label className="field"><span>ROLLING WINDOW</span><select value={form.windowSeconds} onChange={(e) => setForm({ ...form, windowSeconds: Number(e.target.value) })}><option value={900}>15 minutes</option><option value={3600}>1 hour</option><option value={86400}>1 day</option></select></label>
-        <label className="field full"><span>APPROVED RECIPIENT</span><input value={form.recipient} onChange={(e) => setForm({ ...form, recipient: e.target.value })} /></label>
-        <label className="field full"><span>PERMISSION LIFETIME</span><select value={form.expiresInSeconds} onChange={(e) => setForm({ ...form, expiresInSeconds: Number(e.target.value) })}><option value={900}>15 minutes</option><option value={3600}>1 hour</option><option value={86400}>1 day</option></select></label>
-      </div>
-      <div className="policy-preview"><div><Gauge /><span>ROLLING CAP</span></div><i /><div><Fingerprint /><span>ONE RECIPIENT</span></div><i /><div><TimerReset /><span>LEDGER EXPIRY</span></div></div>
-      {error && <div className="dialog-error"><AlertTriangle />{error}</div>}
-      <div className="dialog-actions"><button className="cancel-button" onClick={onClose}>Cancel</button><button className="confirm-button" disabled={busy || !form.delegatedSigner} onClick={async () => { setBusy(true); setError(undefined); try { await createAllowance(form); await onCreated(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Create failed"); } finally { setBusy(false); } }}>{busy ? <LoaderCircle className="spin" /> : <Fingerprint />}Sign with Freighter</button></div>
+      <div className="dialog-header"><div><span>ON-CHAIN ADMIN ACTION</span><h2 id="create-title">New agent allowance</h2><p>Define the boundary once. Let the agent operate inside it.</p></div><button className="dialog-close" title="Close" aria-label="Close" disabled={busy} onClick={onClose}><X /></button></div>
+      {phase === "form" && <>
+        <div className="dialog-stepper" aria-label="Allowance creation steps"><span className="active"><i>1</i>Configure</span><b /><span><i>2</i>Authorize</span><b /><span><i>3</i>Live</span></div>
+        <div className="form-grid allowance-form">
+          <label className="field full"><span>AGENT LABEL</span><input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} /></label>
+          <label className="field full"><span>DELEGATED SIGNER</span><select value={form.delegatedSigner} onChange={(e) => setForm({ ...form, delegatedSigner: e.target.value })}>{overview.availableSigners.map((value) => <option key={value} value={value}>{value}</option>)}</select><small>Signer secrets never enter the browser.</small></label>
+          <label className="field"><span>BUDGET · ATOMIC UNITS</span><input inputMode="numeric" value={form.maxSpendAtomic} onChange={(e) => setForm({ ...form, maxSpendAtomic: e.target.value })} /><small>{budget} {overview.assetCode}</small></label>
+          <label className="field"><span>ROLLING WINDOW</span><select value={form.windowSeconds} onChange={(e) => setForm({ ...form, windowSeconds: Number(e.target.value) })}><option value={900}>15 minutes</option><option value={3600}>1 hour</option><option value={86400}>1 day</option></select></label>
+          <label className="field full"><span>APPROVED RECIPIENT</span><input value={form.recipient} onChange={(e) => setForm({ ...form, recipient: e.target.value })} /></label>
+          <label className="field full"><span>PERMISSION LIFETIME</span><select value={form.expiresInSeconds} onChange={(e) => setForm({ ...form, expiresInSeconds: Number(e.target.value) })}><option value={900}>15 minutes</option><option value={3600}>1 hour</option><option value={86400}>1 day</option></select></label>
+        </div>
+        <div className="allowance-review">
+          <div className="allowance-review-head"><span><ShieldCheck />POLICY PREVIEW</span><small>ENFORCED ON CHAIN</small></div>
+          <div className="allowance-review-grid"><div><span>AGENT</span><strong>{form.label || "Unnamed agent"}</strong></div><div><span>ROLLING CAP</span><strong>{budget} {overview.assetCode}</strong></div><div><span>WINDOW</span><strong>{durationLabel(form.windowSeconds)}</strong></div><div><span>EXPIRES</span><strong>{durationLabel(form.expiresInSeconds)}</strong></div></div>
+          <div className="allowance-review-recipient"><Fingerprint /><span><small>ONLY RECIPIENT</small><code>{short(form.recipient, 12)}</code></span><Check /></div>
+        </div>
+        {error && <div className="dialog-error"><AlertTriangle />{error}</div>}
+        <div className="dialog-actions"><button className="cancel-button" onClick={onClose}>Cancel</button><button className="confirm-button authorize-button" disabled={!form.delegatedSigner || !/^\d+$/.test(form.maxSpendAtomic)} onClick={() => void submit()}><Fingerprint />Authorize with Freighter <ArrowRight /></button></div>
+      </>}
+      {(phase === "preparing" || phase === "signing" || phase === "submitting") && <TransactionProgress phase={phase} mode="create" />}
+      {phase === "success" && created && <div className="operation-success" role="status">
+        <div className="success-emblem"><Check /><i /><i /><i /><i /></div>
+        <span>ALLOWANCE #{created.contextRuleId} · ACTIVE</span>
+        <h3>{created.label} is live.</h3>
+        <p>The agent can now spend within the exact policy you signed. Everything outside it will fail before funds move.</p>
+        <div className="success-facts"><div><small>CAP</small><strong>{amount(created.maxSpendAtomic, overview.assetDecimals)} {overview.assetCode}</strong></div><div><small>RECIPIENT</small><code>{short(created.allowedRecipients[0] ?? "", 9)}</code></div><div><small>STATUS</small><strong><i />ACTIVE</strong></div></div>
+        {created.createTxHash && <a className="transaction-link" href={`https://stellar.expert/explorer/testnet/tx/${created.createTxHash}`} target="_blank" rel="noreferrer"><span><small>STELLAR TRANSACTION</small><code>{short(created.createTxHash, 12)}</code></span><ExternalLink /></a>}
+        <button className="success-primary" onClick={onClose}>View live allowance <ArrowRight /></button>
+      </div>}
     </div>
   </div>;
 }
 
-function RevokeDialog({ allowance, busy, onClose, onConfirm }: { allowance: AllowanceRecord; busy: boolean; onClose: () => void; onConfirm: () => Promise<void> }) {
+function RevokeDialog({ allowance, onClose, onRevoked, revokeAllowance }: {
+  allowance: AllowanceRecord;
+  onClose: () => void;
+  onRevoked: () => Promise<void>;
+  revokeAllowance: (allowance: AllowanceRecord, onPhase: (phase: WalletOperationPhase) => void) => Promise<AllowanceRecord>;
+}) {
+  const [phase, setPhase] = useState<"confirm" | WalletOperationPhase | "success">("confirm");
+  const [revoked, setRevoked] = useState<AllowanceRecord>();
+  const [error, setError] = useState<string>();
+  const busy = phase !== "confirm" && phase !== "success";
+  const submit = async () => {
+    setError(undefined);
+    try {
+      const record = await revokeAllowance(allowance, setPhase);
+      setRevoked(record);
+      setPhase("success");
+      await onRevoked();
+    } catch (reason) {
+      setPhase("confirm");
+      setError(reason instanceof Error ? reason.message : "Revoke failed");
+    }
+  };
   return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
     <div className="dialog revoke-dialog" role="alertdialog" aria-modal="true" aria-labelledby="revoke-title">
-      <span className="revoke-symbol"><ShieldX /></span><span>EMERGENCY CONTROL</span><h2 id="revoke-title">Revoke rule #{allowance.contextRuleId}?</h2><p><strong>{allowance.label}</strong> will immediately lose future spending authority. Other agents remain active.</p>
-      <div className="revoke-signer"><span>DELEGATED SIGNER</span><code>{allowance.delegatedSigner}</code></div>
-      <div className="dialog-actions"><button className="cancel-button" disabled={busy} onClick={onClose}>Keep active</button><button className="danger-confirm" disabled={busy} onClick={() => void onConfirm()}>{busy ? <LoaderCircle className="spin" /> : <Ban />}Sign & revoke</button></div>
+      {phase === "confirm" && <><span className="revoke-symbol"><ShieldX /></span><span>EMERGENCY CONTROL</span><h2 id="revoke-title">Revoke rule #{allowance.contextRuleId}?</h2><p><strong>{allowance.label}</strong> will immediately lose future spending authority. Other agents remain active.</p>
+        <div className="revoke-signer"><span>DELEGATED SIGNER</span><code>{allowance.delegatedSigner}</code></div>
+        {error && <div className="dialog-error"><AlertTriangle />{error}</div>}
+        <div className="dialog-actions"><button className="cancel-button" onClick={onClose}>Keep active</button><button className="danger-confirm" onClick={() => void submit()}><Ban />Authorize revocation</button></div></>}
+      {(phase === "preparing" || phase === "signing" || phase === "submitting") && <TransactionProgress phase={phase} mode="revoke" />}
+      {phase === "success" && revoked && <div className="operation-success revoke-success" role="status"><div className="success-emblem"><ShieldX /><i /><i /><i /><i /></div><span>RULE #{revoked.contextRuleId} · REVOKED</span><h3>Authority removed.</h3><p>{revoked.label} can no longer authorize future payments from this treasury.</p>{revoked.revokeTxHash && <a className="transaction-link" href={`https://stellar.expert/explorer/testnet/tx/${revoked.revokeTxHash}`} target="_blank" rel="noreferrer"><span><small>STELLAR TRANSACTION</small><code>{short(revoked.revokeTxHash, 12)}</code></span><ExternalLink /></a>}<button className="success-primary" onClick={onClose}>Done <Check /></button></div>}
     </div>
   </div>;
 }
