@@ -26,6 +26,7 @@ import {
   type TreasuryDeploymentConfig,
 } from "@agentallowance/sdk";
 import { createConsoleApp, type OwnerConsoleScope, type OwnerProfile } from "./app.js";
+import { fundOwnerTreasuryToTarget } from "./owner-funding.js";
 import { PendingOwnerOperations } from "./owner-operations.js";
 
 const workspaceRoot = fileURLToPath(new URL("../../..", import.meta.url));
@@ -252,7 +253,10 @@ if (deployment.allowanceRuleId === 1 && deployment.validUntil !== undefined &&
 const ownerInitialLimit = bigintEnv("OWNER_INITIAL_SPENDING_LIMIT", "1000000");
 const ownerPeriodLedgers = integerEnv("OWNER_PERIOD_LEDGERS", 720);
 const ownerLifetimeLedgers = integerEnv("OWNER_ALLOWANCE_LIFETIME_LEDGERS", 17_280);
-const ownerInitialFunding = bigintEnv("OWNER_INITIAL_FUNDING_ATOMIC", "0");
+const ownerFundingTarget = bigintEnv(
+  "OWNER_TREASURY_TARGET_BALANCE_ATOMIC",
+  process.env.OWNER_INITIAL_FUNDING_ATOMIC?.trim() || "0",
+);
 const ownerDatabaseDirectory = process.env.OWNER_DATABASE_DIRECTORY?.trim() || path.join(workspaceRoot, "data");
 const ownerDelegate = process.env.OWNER_DELEGATED_SIGNER?.trim() || delegates[0]!.publicKey();
 if (!delegatedSigners[ownerDelegate]) throw new Error("OWNER_DELEGATED_SIGNER has no configured secret");
@@ -285,6 +289,30 @@ function serializeSource<T>(operation: () => Promise<T>): Promise<T> {
   const result = sourceQueue.then(operation, operation);
   sourceQueue = result.then(() => undefined, () => undefined);
   return result;
+}
+
+async function ensureOwnerTreasuryFunding(treasury: string): Promise<string | undefined> {
+  const result = await fundOwnerTreasuryToTarget({
+    targetBalanceAtomic: ownerFundingTarget,
+    readBalance: async () => String(await readContractValue({
+      rpcUrl,
+      networkPassphrase,
+      transactionSource: source.publicKey(),
+      contractId: deployment.token,
+      method: "balance",
+      args: [Address.fromString(treasury).toScVal()],
+    })),
+    fund: (amount) => serializeSource(() => fundTreasuryFromSponsor({
+      rpcUrl,
+      horizonUrl,
+      networkPassphrase,
+      transactionSource: source,
+      assetContract: deployment.token,
+      treasuryContract: treasury,
+      amount,
+    })),
+  });
+  return result.transactionHash;
 }
 
 type PendingAdminOperation = {
@@ -480,14 +508,31 @@ function ownerScope(owner: string): Promise<OwnerConsoleScope> {
 async function ownerProfile(owner: string): Promise<OwnerProfile> {
   const cached = ownerProfiles.get(owner);
   const treasury = ownerTreasury(owner);
-  return {
+  const onboarded = await treasuryExists(rpcUrl, treasury);
+  if (!onboarded || cached) return {
     address: owner,
     treasury,
-    onboarded: await treasuryExists(rpcUrl, treasury),
+    onboarded,
     deploymentTransaction: cached?.deploymentTransaction,
     fundingTransaction: cached?.fundingTransaction,
     fundingError: cached?.fundingError,
   };
+  let fundingTransaction: string | undefined;
+  let fundingError: string | undefined;
+  try {
+    fundingTransaction = await ensureOwnerTreasuryFunding(treasury);
+  } catch (error) {
+    fundingError = error instanceof Error ? error.message : "Sponsored Testnet funding failed";
+  }
+  const profile: OwnerProfile = {
+    address: owner,
+    treasury,
+    onboarded: true,
+    fundingTransaction,
+    fundingError,
+  };
+  if (!fundingError) ownerProfiles.set(owner, profile);
+  return profile;
 }
 
 async function onboardOwner(owner: string): Promise<OwnerProfile> {
@@ -498,17 +543,9 @@ async function onboardOwner(owner: string): Promise<OwnerProfile> {
   const result = await serializeSource(() => deployDeterministicTreasury(owner, ownerDeploymentConfig(validUntilLedger)));
   let fundingTransaction: string | undefined;
   let fundingError: string | undefined;
-  if (result.created && ownerInitialFunding > 0n) {
+  if (ownerFundingTarget > 0n) {
     try {
-      fundingTransaction = await serializeSource(() => fundTreasuryFromSponsor({
-        rpcUrl,
-        horizonUrl,
-        networkPassphrase,
-        transactionSource: source,
-        assetContract: deployment.token,
-        treasuryContract: result.treasuryContract,
-        amount: ownerInitialFunding,
-      }));
+      fundingTransaction = await ensureOwnerTreasuryFunding(result.treasuryContract);
     } catch (error) {
       fundingError = error instanceof Error ? error.message : "Sponsored Testnet funding failed";
     }
