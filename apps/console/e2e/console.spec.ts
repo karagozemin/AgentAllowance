@@ -24,6 +24,22 @@ async function mockOverview(page: Page): Promise<void> {
       facilitatorUrl: "http://127.0.0.1:8080/api/v1/plugins/x402-facilitator/call",
       availableSigners: [signer],
       allowances: [{
+        allowanceId: "1",
+        label: "Expired agent",
+        network: "stellar:testnet",
+        treasuryContract: "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
+        assetContract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        delegatedSigner: signer,
+        maxSpendAtomic: "500000",
+        spentAtomic: "100000",
+        windowLedgers: 720,
+        allowedRecipients: [merchant],
+        validUntilLedger: 3948000,
+        contextRuleId: 1,
+        status: "EXPIRED",
+        createdAt: "2026-08-03T01:00:00.000Z",
+        updatedAt: "2026-08-03T13:18:26.514Z",
+      }, {
         allowanceId: "2",
         label: "Data agent",
         network: "stellar:testnet",
@@ -209,6 +225,8 @@ test("moves from the product landing into the live control plane", async ({ page
   }
   await page.getByRole("button", { name: "Payment lab", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Payment lab" })).toBeVisible();
+  await expect(page.getByLabel("ACTIVE ALLOWANCE")).toHaveValue("2");
+  await expect(page.getByLabel("ACTIVE ALLOWANCE").locator("option")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /Approved payment/ })).toBeVisible();
   await expectNoViewportOverflow(page);
   expect(errors).toEqual([]);

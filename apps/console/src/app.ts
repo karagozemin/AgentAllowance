@@ -276,9 +276,13 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     if (!config.publicDemo || !["success", "over-limit", "unapproved-recipient"].includes(body.scenario)) {
       return context.json({ error: "PUBLIC_DEMO_UNAVAILABLE" }, 400);
     }
-    const allowance = config.publicDemo.allowanceId
-      ? await config.agentAllowance.allowances.get(config.publicDemo.allowanceId)
-      : (await config.agentAllowance.allowances.list()).find((item) => item.status === "ACTIVE");
+    const allowances = await config.agentAllowance.allowances.list();
+    const configuredAllowance = config.publicDemo.allowanceId
+      ? allowances.find((item) => item.allowanceId === config.publicDemo!.allowanceId)
+      : undefined;
+    const allowance = configuredAllowance?.status === "ACTIVE"
+      ? configuredAllowance
+      : allowances.find((item) => item.status === "ACTIVE");
     if (!allowance) return context.json({ error: "NO_ACTIVE_DEMO_ALLOWANCE" }, 409);
     if (body.scenario === "success") {
       const client = context.req.header("CF-Connecting-IP") ?? context.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ?? "local";

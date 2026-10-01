@@ -200,16 +200,30 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
   }), [overview]);
 
   const run = async (scenario: Scenario) => {
-    if (!selected) return;
+    const executable = selected?.status === "ACTIVE"
+      ? selected
+      : overview?.allowances.find((item) => item.status === "ACTIVE");
+    if (!executable) {
+      setResult("NO_ACTIVE_ALLOWANCE");
+      return;
+    }
+    if (executable.allowanceId !== selectedId) setSelectedId(executable.allowanceId);
     setBusy(scenario); setError(undefined); setResult(undefined);
     try {
-      const response = ownerProfile?.onboarded ? await api.run(selected.allowanceId, scenario) : await api.runPublic(scenario);
+      const response = ownerProfile?.onboarded ? await api.run(executable.allowanceId, scenario) : await api.runPublic(scenario);
       setResult(response.ok ? "PAID_AND_UNLOCKED" : response.reason ?? "POLICY_BLOCKED");
     } catch (reason) { setResult(reason instanceof Error ? reason.message : "POLICY_BLOCKED"); }
     finally { setBusy(undefined); await refresh(); }
   };
 
-  const navigate = (next: ConsoleView) => { setView(next); setMobileNav(false); };
+  const navigate = (next: ConsoleView) => {
+    if (next === "lab" && selected?.status !== "ACTIVE") {
+      const active = overview?.allowances.find((item) => item.status === "ACTIVE");
+      if (active) setSelectedId(active.allowanceId);
+    }
+    setView(next);
+    setMobileNav(false);
+  };
   const modeLabel = ownerProfile?.onboarded ? "My treasury" : "Public demo";
 
   return <div className="console-shell">
@@ -330,10 +344,11 @@ function PaymentLab({ overview, selectedId, onSelect, busy, result, onRun }: {
 }) {
   const running = Boolean(busy);
   const resultSuccess = result?.includes("PAID");
+  const activeAllowances = overview.allowances.filter((item) => item.status === "ACTIVE");
   return <div className="console-content lab-content">
     <section className="lab-header">
       <div><span>BOUNDED EXECUTION</span><h2>Run a real x402 payment path.</h2><p>Each scenario builds a fresh delegated authorization and reaches the policy boundary.</p></div>
-      <label><span>ALLOWANCE</span><select value={selectedId} onChange={(event) => onSelect(event.target.value)}>{overview.allowances.map((item) => <option key={item.allowanceId} value={item.allowanceId}>Rule #{item.allowanceId} · {item.label}</option>)}</select></label>
+      <label><span>ACTIVE ALLOWANCE</span><select value={selectedId} disabled={activeAllowances.length === 0} onChange={(event) => onSelect(event.target.value)}>{activeAllowances.map((item) => <option key={item.allowanceId} value={item.allowanceId}>Rule #{item.allowanceId} · {item.label}</option>)}</select></label>
     </section>
 
     <div className="lab-grid">

@@ -49,7 +49,7 @@ function attempt(): PaymentAttempt {
   };
 }
 
-function setup() {
+function setup(options: { configuredAllowance?: AllowanceRecord; allowances?: AllowanceRecord[] } = {}) {
   const current = allowance();
   const create = vi.fn(async (input: AllowanceCreateInput) => ({
     ...current,
@@ -68,8 +68,8 @@ function setup() {
   const agentAllowance = {
     allowances: {
       create,
-      get: vi.fn(async () => current),
-      list: vi.fn(async () => [current]),
+      get: vi.fn(async () => options.configuredAllowance ?? current),
+      list: vi.fn(async () => options.allowances ?? [current]),
       revoke,
     },
     treasury: { balance: vi.fn(async () => "1200000") },
@@ -316,7 +316,9 @@ describe("console API", () => {
   });
 
   test("runs only fixed public demo scenarios and rate-limits successful settlement", async () => {
-    const { app, payFetch } = setup();
+    const expired = { ...allowance(), status: "EXPIRED" as const };
+    const active = { ...allowance(), allowanceId: "1", contextRuleId: 1 };
+    const { app, payFetch } = setup({ configuredAllowance: expired, allowances: [expired, active] });
     expect((await app.request("/api/public-demo/run", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scenario: "success" }),
@@ -330,6 +332,7 @@ describe("console API", () => {
       body: JSON.stringify({ scenario: "arbitrary" }),
     })).status).toBe(400);
     expect(payFetch).toHaveBeenCalledTimes(1);
+    expect(payFetch).toHaveBeenCalledWith("http://demo.test/premium?scenario=success", { allowanceId: "1" });
   });
 
   test("exposes reconciliation for uncertain attempts", async () => {
