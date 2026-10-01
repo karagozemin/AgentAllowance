@@ -8,6 +8,7 @@ the durable record.
 | --- | --- | --- |
 | Official Testnet USDC x402 payment settled | [USDC settlement](../evidence/testnet/2026-08-03T20-19-52Z/settlement.json) | asset SAC, `isValid`, transaction hash, amount, exact state deltas |
 | Treasury paid the merchant | [USDC evidence README](../evidence/testnet/2026-08-03T20-19-52Z/README.md) | Stellar Expert link, balances, and ledger |
+| Public demo unlocks the protected resource | [Public demo USDC evidence](../evidence/testnet/2026-08-03T20-41-03Z/public-demo.json) | two blocks, paid retry, `PAID_AND_UNLOCKED`, receipt, and state deltas |
 | Delegated authorization works | [Compatibility proof](../../proofs/stellar-x402-smart-account/README.md) | two auth entries, simulation, XDR |
 | Spending limit blocks excess | [USDC blocked attempts](../evidence/testnet/2026-08-03T20-19-52Z/blocked-attempts.json) | failed enforcing simulation, facilitator rejection, no settlement |
 | Recipient policy blocks wrong payTo | [USDC blocked attempts](../evidence/testnet/2026-08-03T20-19-52Z/blocked-attempts.json) | failed enforcing simulation, facilitator rejection, no settlement |

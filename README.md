@@ -331,6 +331,12 @@ The transaction is visible on
 Sanitized, append-only deployment, rejection, verification, settlement, and state evidence is under
 [docs/evidence/testnet/2026-08-03T20-19-52Z](docs/evidence/testnet/2026-08-03T20-19-52Z/).
 
+The bounded public demo subsequently ran both policy blocks and a full paid-resource retry against
+the same USDC treasury. It returned `PAID_AND_UNLOCKED` with transaction
+[`ebfdc51dc534bb501b555a3b9541916361f2eb32573254992710acfca5125950`](https://stellar.expert/explorer/testnet/tx/ebfdc51dc534bb501b555a3b9541916361f2eb32573254992710acfca5125950).
+The normalized product-flow evidence is under
+[docs/evidence/testnet/2026-08-03T20-41-03Z](docs/evidence/testnet/2026-08-03T20-41-03Z/).
+
 ## Submission evidence
 
 The reviewer-facing evidence index is [docs/submission/evidence-index.md](docs/submission/evidence-index.md).
