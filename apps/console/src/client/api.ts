@@ -27,6 +27,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   overview: () => request<Overview>("/api/overview"),
+  ownerChallenge: () => request<{ message: string; nonce: string; admin: string | null }>("/api/owner/challenge"),
+  ownerLogin: (body: { nonce: string; address: string; signature: string }) =>
+    request<{ ok: true; address: string }>("/api/owner/login", { method: "POST", body: JSON.stringify(body) }),
   createAllowance: (body: {
     label: string;
     delegatedSigner: string;

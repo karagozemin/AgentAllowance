@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { AllowanceRecord, PaymentAttempt } from "@agentallowance/shared";
 import { api, type Overview } from "./api.js";
+import { getAddress, signMessage } from "@stellar/freighter-api";
 
 type View = "overview" | "command";
 
@@ -74,8 +75,28 @@ export function App() {
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<string>();
+  const [ownerAddress, setOwnerAddress] = useState<string>();
+  const [ownerBusy, setOwnerBusy] = useState(false);
   const operatorMode = window.location.pathname === "/operator";
   const enterOperatorMode = () => window.location.assign("/operator");
+  const connectOwner = async () => {
+    setOwnerBusy(true); setError(undefined);
+    try {
+      const address = await getAddress();
+      if (address.error || !address.address) throw new Error(address.error?.message ?? "Freighter did not return an address");
+      const challenge = await api.ownerChallenge();
+      if (challenge.admin && challenge.admin !== address.address) throw new Error("Connected wallet is not the treasury admin");
+      const signed = await signMessage(challenge.message, { address: address.address });
+      const raw = signed.signedMessage;
+      if (!raw) throw new Error(signed.error?.message ?? "Wallet signature was rejected");
+      const signature = typeof raw === "string"
+        ? raw
+        : btoa(Array.from(raw, (byte) => String.fromCharCode(byte)).join(""));
+      await api.ownerLogin({ nonce: challenge.nonce, address: address.address, signature });
+      setOwnerAddress(address.address);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Wallet login failed"); }
+    finally { setOwnerBusy(false); }
+  };
 
   const refresh = async () => {
     setError(undefined);
@@ -149,7 +170,8 @@ export function App() {
               <RefreshCw size={17} />
             </button>
             {operatorMode ? (
-              <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button>
+              ownerAddress ? <button className="primary" onClick={() => setCreateOpen(true)}><Plus size={17} />Create allowance</button> :
+                <button className="primary" disabled={ownerBusy} onClick={() => void connectOwner()}><LogIn size={17} />{ownerBusy ? "Connecting..." : "Connect Freighter"}</button>
             ) : (
               <button className="primary" onClick={enterOperatorMode}><LogIn size={17} />Operator login</button>
             )}
@@ -166,6 +188,10 @@ export function App() {
             onRevoke={async (allowance) => {
               if (!operatorMode) {
                 enterOperatorMode();
+                return;
+              }
+              if (!ownerAddress) {
+                await connectOwner();
                 return;
               }
               if (!window.confirm(`Revoke allowance #${allowance.allowanceId} for ${allowance.delegatedSigner}?`)) return;

@@ -85,7 +85,7 @@ function setup() {
 }
 
 describe("console API", () => {
-  test("keeps the dashboard public and protects operator routes", async () => {
+  test("keeps dashboard and wallet-login page public", async () => {
     const { app } = setup();
     app.get("/", (context) => context.text("console"));
     app.get("/operator", (context) => context.text("operator"));
@@ -93,16 +93,10 @@ describe("console API", () => {
     expect((await app.request("/")).status).toBe(200);
     expect((await app.request("/api/overview")).status).toBe(200);
     const missing = await app.request("/operator");
-    expect(missing.status).toBe(401);
-    expect(missing.headers.get("WWW-Authenticate")).toContain("Basic");
+    expect(missing.status).toBe(200);
     expect((await app.request("/operator", {
       headers: { Authorization: "Basic malformed" },
-    })).status).toBe(401);
-    expect((await app.request("/operator", {
-      headers: {
-        Authorization: `Basic ${Buffer.from("operator:wrong-password").toString("base64")}`,
-      },
-    })).status).toBe(401);
+    })).status).toBe(200);
     expect((await app.request("/operator", {
       headers: { Authorization: authorization },
     })).status).toBe(200);

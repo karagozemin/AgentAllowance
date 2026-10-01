@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import {
   AgentAllowanceError,
@@ -6,8 +6,10 @@ import {
   type AllowanceCreateInput,
 } from "@agentallowance/sdk";
 import { atomicToDecimal } from "@agentallowance/shared";
+import { Keypair } from "@stellar/stellar-sdk";
 
 export type ConsoleDeployment = {
+  admin?: string;
   token: string;
   smartAccount: string;
   merchant: string;
@@ -46,6 +48,8 @@ function credentialsMatch(authorization: string | undefined, username: string, p
 
 export function createConsoleApp(config: ConsoleApiConfig): Hono {
   const app = new Hono();
+  const challenges = new Map<string, { message: string; expiresAt: number }>();
+  const sessions = new Map<string, number>();
 
   app.use("*", async (context, next) => {
     context.header("X-Content-Type-Options", "nosniff");
@@ -61,19 +65,52 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
 
   app.get("/health", (context) => context.json({ status: "ok", network: "stellar:testnet" }));
 
+  app.get("/api/owner/challenge", (context) => {
+    const nonce = randomBytes(24).toString("hex");
+    const message = `AgentAllowance owner login\nNonce: ${nonce}\nNetwork: stellar:testnet`;
+    challenges.set(nonce, { message, expiresAt: Date.now() + 120_000 });
+    return context.json({ message, nonce, admin: config.deployment.admin ?? null });
+  });
+
+  app.post("/api/owner/login", async (context) => {
+    const body = await context.req.json<{ nonce: string; address: string; signature: string }>();
+    const challenge = challenges.get(body.nonce);
+    if (!challenge || challenge.expiresAt < Date.now()) return context.json({ error: "CHALLENGE_EXPIRED" }, 401);
+    if (!config.deployment.admin || body.address !== config.deployment.admin) return context.json({ error: "NOT_TREASURY_ADMIN" }, 403);
+    try {
+      const signature = Buffer.from(body.signature, "base64");
+      if (!Keypair.fromPublicKey(body.address).verify(Buffer.from(challenge.message), signature)) {
+        return context.json({ error: "INVALID_WALLET_SIGNATURE" }, 401);
+      }
+    } catch { return context.json({ error: "INVALID_WALLET_SIGNATURE" }, 401); }
+    challenges.delete(body.nonce);
+    const session = randomBytes(32).toString("hex");
+    sessions.set(session, Date.now() + 15 * 60_000);
+    const secure = context.req.header("X-Forwarded-Proto") === "https" || new URL(context.req.url).protocol === "https:"
+      ? "; Secure"
+      : "";
+    context.header("Set-Cookie", `agentallowance_owner=${session}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=900`);
+    return context.json({ ok: true, address: body.address });
+  });
+
+  const ownerSessionValid = (cookie: string | undefined): boolean => {
+    const value = cookie?.split(";").map((item) => item.trim()).find((item) => item.startsWith("agentallowance_owner="))?.slice(21);
+    const expires = value ? sessions.get(value) : undefined;
+    if (!expires) return false;
+    if (expires < Date.now()) { sessions.delete(value!); return false; }
+    return true;
+  };
+
   const requireOperator = async (context: Parameters<Parameters<typeof app.use>[1]>[0], next: () => Promise<void>) => {
-    if (!credentialsMatch(
+    if (ownerSessionValid(context.req.header("Cookie")) || credentialsMatch(
       context.req.header("Authorization"),
       config.auth.username,
       config.auth.password,
-    )) {
-      context.header("WWW-Authenticate", 'Basic realm="AgentAllowance Console", charset="UTF-8"');
-      return context.json({ error: "UNAUTHORIZED" }, 401);
-    }
-    await next();
+    )) { await next(); return; }
+    context.header("WWW-Authenticate", 'Basic realm="AgentAllowance Console", charset="UTF-8"');
+    return context.json({ error: "UNAUTHORIZED" }, 401);
   };
 
-  app.use("/operator", requireOperator);
   app.use("/api/allowances", requireOperator);
   app.use("/api/allowances/*", requireOperator);
   app.use("/api/demo/*", requireOperator);
