@@ -106,8 +106,10 @@ and transaction XDR are retained there. The hosted OpenZeppelin facilitator was 
 
 The hosted OpenZeppelin facilitator still rejects the valid policy event. The local fork uses the
 official `openzeppelin/openzeppelin-relayer:1.7.0` image and the deployment steps in
-[the integration guide](docs/openzeppelin-facilitator-integration.md). Do not interpret the hosted
-endpoint's known `event_not_transfer` response as product compatibility.
+[the integration guide](docs/openzeppelin-facilitator-integration.md). A Render Free Testnet demo
+deployment is defined by `render.yaml`; follow [the Render guide](deploy/render/README.md) without
+committing any signer or API secrets. Do not interpret the hosted endpoint's known
+`event_not_transfer` response as product compatibility.
 
 MPP, AgentAllowance UI, npm publication, multi-asset support, threshold administration, and hosted
 OpenZeppelin deployment are intentionally outside this MVP core.

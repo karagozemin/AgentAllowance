@@ -1,0 +1,73 @@
+{
+  "relayers": [
+    {
+      "id": "agentallowance-testnet",
+      "name": "AgentAllowance Testnet",
+      "network": "testnet",
+      "paused": false,
+      "network_type": "stellar",
+      "signer_id": "agentallowance-render-signer",
+      "policies": {
+        "fee_payment_strategy": "relayer",
+        "min_balance": 0
+      }
+    }
+  ],
+  "notifications": [],
+  "signers": [
+    {
+      "id": "agentallowance-render-signer",
+      "type": "local",
+      "config": {
+        "path": "/etc/secrets/local-signer.json",
+        "passphrase": {
+          "type": "env",
+          "value": "KEYSTORE_PASSPHRASE"
+        }
+      }
+    }
+  ],
+  "networks": "./config/networks",
+  "plugins": [
+    {
+      "id": "x402-facilitator",
+      "path": "x402-facilitator/index.ts",
+      "timeout": 30,
+      "emit_logs": true,
+      "emit_traces": true,
+      "forward_logs": true,
+      "raw_response": true,
+      "allow_get_invocation": true,
+      "config": {
+        "networks": [
+          {
+            "network": "stellar:testnet",
+            "type": "stellar",
+            "relayer_id": "agentallowance-testnet",
+            "assets": [
+              "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
+            ],
+            "maxTransactionFeeStroops": "2000000",
+            "policy_manifests": [
+              {
+                "id": "agentallowance-testnet-2026-08-01T15-10-40-519Z",
+                "network": "stellar:testnet",
+                "smartAccount": "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
+                "expectedRuleId": 1,
+                "adapters": [
+                  {
+                    "kind": "openzeppelin-stellar-accounts/spending-limit@0.7.2",
+                    "contractId": "CAMI5B457BBE4OI3B2FLGSHFCJDX5Y2ZROCTKCHX4JEZD3FQE4ICBMJP",
+                    "expectedWasmHash": "a9db20666d0f5f848baf84888ea5f96a97a7fa5ce53e7357d25bc0fab135a901",
+                    "required": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+
