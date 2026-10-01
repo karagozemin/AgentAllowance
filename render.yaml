@@ -36,7 +36,7 @@ services:
       - key: REQUEST_TIMEOUT_SECONDS
         value: "170"
       - key: ACTIX_WORKERS
-        value: "1"
+        value: "2"
       - key: TOKIO_WORKER_THREADS
         value: "1"
       - key: PLUGIN_USE_POOL

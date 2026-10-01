@@ -13,6 +13,10 @@ raise only that internal timeout to 90 seconds. The Testnet demo uses a 150-seco
 a 170-second HTTP timeout. This increases authenticated request occupancy and is not a production
 sizing recommendation.
 
+The service uses two Actix workers even though the free instance exposes one vCPU. One worker can be
+occupied by the outer plugin HTTP request while the second services the plugin-to-relayer transport.
+This trades throughput for correctness under the legacy ts-node execution mode.
+
 ## Security boundary
 
 - Never commit or paste the Stellar secret key, encrypted keystore, keystore passphrase, or API key.
