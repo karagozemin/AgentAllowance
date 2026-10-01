@@ -54,6 +54,7 @@ h1, h2, h3, p { margin-top: 0; letter-spacing: 0; }
 .hero-copy { position: relative; z-index: 5; width: min(670px, 55vw); }
 .hero-kicker { display: flex; align-items: center; gap: 9px; margin-bottom: 24px; color: #b3bdb5; font-size: 11px; font-weight: 800; }
 .hero-kicker span { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 18px var(--lime); animation: live-pulse 1.8s ease-in-out infinite; }
+.hero-kicker img { width: 67px; height: auto; filter: invert(1); opacity: .82; }
 .hero-copy h1 { margin-bottom: 20px; color: white; font-size: 76px; line-height: .96; font-weight: 790; }
 .hero-copy > p { max-width: 620px; margin-bottom: 32px; color: #c3cbc5; font-size: 23px; line-height: 1.45; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }

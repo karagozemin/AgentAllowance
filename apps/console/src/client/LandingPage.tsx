@@ -92,7 +92,7 @@ export function LandingPage({ onLaunch, launching }: LandingPageProps) {
       <section className="landing-hero" id="top">
         <HeroNetwork />
         <div className="hero-copy">
-          <div className="hero-kicker"><span /> LIVE ON STELLAR TESTNET</div>
+          <div className="hero-kicker"><span />LIVE ON <img src="/stellar-logo.svg" alt="Stellar" /></div>
           <h1>AgentAllowance</h1>
           <p>Give autonomous agents real USDC spending power without giving them your treasury.</p>
           <div className="hero-actions">
