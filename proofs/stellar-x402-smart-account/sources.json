@@ -1,0 +1,21 @@
+{
+  "openzeppelinStellarContracts": {
+    "repository": "https://github.com/OpenZeppelin/stellar-contracts",
+    "version": "v0.7.2",
+    "commit": "a9c42169000638da937577f592ebf61a7a3c94ca"
+  },
+  "openzeppelinFacilitator": {
+    "repository": "https://github.com/OpenZeppelin/relayer-plugin-x402-facilitator",
+    "commit": "100ccec1dcb597544a215f749796870e03c63c45"
+  },
+  "stellarX402": {
+    "repository": "https://github.com/stellar/x402-stellar",
+    "commit": "7a96df856f533a5f13feaa48340e10cee1f9e37f"
+  },
+  "dependencies": {
+    "stellar-accounts": "0.7.2",
+    "soroban-sdk": "26.1.0",
+    "@stellar/stellar-sdk": "16.2.0"
+  }
+}
+
