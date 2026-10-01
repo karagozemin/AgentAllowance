@@ -124,6 +124,17 @@ Stop after successful verification and review the exact attempt's payment, XDR, 
 simulation response, request, and facilitator response. Settlement requires separate approval plus
 `ALLOW_SETTLEMENT=yes`.
 
+After a successful settlement, archive an independent Stellar RPC confirmation and the exact local
+Relayer logs into the selected attempt directory:
+
+```bash
+pnpm --filter @agentallowance/testnet-cli run archive-settlement
+```
+
+The runtime preparation command emits a CommonJS bundle with an `index.ts` filename. Relayer `1.7.0`
+requires the configured plugin path to end in `.ts` and loads the file through its TypeScript/CommonJS
+executor.
+
 ## Rollback and cleanup
 
 ```bash

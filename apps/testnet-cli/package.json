@@ -9,6 +9,7 @@
     "authorize": "tsx src/authorize.ts",
     "verify": "tsx src/verify.ts",
     "settle": "tsx src/settle.ts",
+    "archive-settlement": "tsx src/archive-settlement.ts",
     "status": "tsx src/status.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
