@@ -1,4 +1,24 @@
-# AgentAllowance
+<p align="center">
+  <img src="docs/assets/agentallowance-logo.jpg" alt="AgentAllowance" width="190" />
+</p>
+
+<h1 align="center">AgentAllowance</h1>
+
+<p align="center"><strong>Policy-aware x402 infrastructure for autonomous AI spending on Stellar.</strong></p>
+
+<p align="center">
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/security.md">Security model</a> ·
+  <a href="docs/openzeppelin-facilitator-integration.md">Facilitator integration</a> ·
+  <a href="docs/evidence/testnet/2026-08-03T14-09-36Z/">Testnet evidence</a>
+</p>
+
+<p align="center">
+  <img alt="Stellar Testnet" src="https://img.shields.io/badge/Stellar-Testnet-111111" />
+  <img alt="x402 v2" src="https://img.shields.io/badge/x402-v2-1f8f75" />
+  <img alt="OpenZeppelin Smart Accounts" src="https://img.shields.io/badge/OpenZeppelin-Smart_Accounts-4e5ee4" />
+  <img alt="Status" src="https://img.shields.io/badge/status-live_testnet-20a878" />
+</p>
 
 AgentAllowance is a policy-aware x402 infrastructure layer for delegated AI spending on Stellar.
 It resolves the demonstrated compatibility gap between OpenZeppelin Smart Accounts and strict Stellar
@@ -8,6 +28,35 @@ limit, an exact recipient policy, and a reusable policy-aware facilitator extens
 
 The existing compatibility proof remains unchanged under
 `proofs/stellar-x402-smart-account/` and is used as the regression source of truth.
+
+## Why AgentAllowance exists
+
+Standard Stellar x402 payments expect one strict SEP-41 transfer event. OpenZeppelin Smart Account
+policies can correctly authorize the same transfer while emitting an additional policy event. The
+original hosted facilitator therefore rejected a payment that had already passed enforcing-mode
+simulation, delegated authorization, and on-chain spending-policy checks.
+
+AgentAllowance resolves that real integration gap without relaxing the verifier. It admits only the
+manifest-pinned OpenZeppelin `spending_limit_enforced` event, validates every field against the signed
+transfer, and continues rejecting unrelated events, unexpected authorization entries, altered
+amounts or recipients, nested invocations, stale payloads, and unapproved WASM.
+
+## What the demo proves
+
+1. A parent C-account treasury can hold the payment asset.
+2. A delegated agent can authorize an x402 payment without the owner signing every request.
+3. Spending, recipient, token, and expiry restrictions are enforced by the smart account.
+4. The policy-aware facilitator can verify and settle the exact transaction through an OpenZeppelin Relayer.
+5. Over-limit and unapproved-recipient attempts fail without moving funds.
+6. Every decision can be traced to simulation output, auth XDR, policy evidence, and a transaction hash.
+
+```text
+Owner sets bounded permission -> Agent receives HTTP 402 -> Smart account enforces policy
+-> Facilitator verifies exact transfer + approved policy event -> Relayer settles -> Resource unlocks
+```
+
+The full component, trust-boundary, authorization, and sequence diagrams are in
+**[docs/architecture.md](docs/architecture.md)**.
 
 ## Implemented core
 
@@ -26,6 +75,21 @@ The existing compatibility proof remains unchanged under
 - `packages/sdk`: multi-allowance administration, payer/fetch client, SQLite evidence and reconciliation.
 - `apps/x402-demo-api`: real HTTP 402 challenge, atomic settlement idempotency and protected resource.
 - `apps/console`: server-only signer boundary plus responsive React treasury and command console.
+
+## Product modes
+
+| Mode | Audience | Capability |
+| --- | --- | --- |
+| Public demo | Judges and visitors | Inspect treasury, allowances, policy decisions, receipts, and transaction evidence |
+| Wallet owner | Configured treasury admin | Connect Freighter, prove wallet ownership, create and revoke bounded allowances |
+| Autonomous agent | Delegated backend signer | Complete x402 payments without per-payment owner approval |
+| Operator fallback | Maintainers | Relayer maintenance, reconciliation, deployment, and emergency API access |
+
+The primary UI does not expose a shared password. Freighter login uses a one-time, expiring challenge
+and a short-lived HttpOnly session. Basic Auth remains a server-side emergency fallback. In the
+current Testnet demo, the server still submits admin rule transactions through its configured admin
+signer after owner authentication; moving the Soroban admin authorization signature itself into
+Freighter is the next custody hardening milestone.
 
 ## Pinned versions
 
