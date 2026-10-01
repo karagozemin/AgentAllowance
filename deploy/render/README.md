@@ -13,9 +13,10 @@ relayer info, read-only Stellar RPC, and transaction submission. The Relayer rem
 transaction source, fee payer, and settlement engine. The adapter preserves the existing endpoint
 and bearer API key, and does not replace or relax verifier logic.
 
-The Blueprint also defines two Node services. `agentallowance-demo-api` is the public x402-protected
+The Blueprint also defines two Node services and one static site. `agentallowance-demo-api` is the public x402-protected
 merchant resource and accepts any smart-account payer approved by the policy-aware facilitator.
 `agentallowance-console` provides a bounded public demo plus per-wallet Testnet treasury onboarding.
+`agentallowance-docs` publishes the searchable developer portal without a server runtime.
 Both use SQLite under `/tmp`; payment-attempt history is lost when a free instance is replaced, while
 deterministic owner treasury discovery, on-chain allowance reconstruction, balances, policy state, and
 settlement transactions remain available from Testnet.
@@ -29,7 +30,7 @@ settlement transactions remain available from Testnet.
 - The static config accepts only the pinned Testnet asset and manifest-pinned
   `spending_limit_enforced` event. Recipient-policy payment events remain unsupported.
 - The console exposes its UI, `/operator`, `/health`, and `/api/overview` publicly. Any Testnet
-  Freighter G-account may sign a wallet-bound challenge and receive a short-lived HttpOnly session for
+  Freighter G-account may sign a wallet-bound challenge and receive a signed 24-hour HttpOnly session for
   its own deterministic treasury. Basic Auth remains an emergency maintenance fallback and cannot
   authenticate owner endpoints; credentials are never bundled into React.
 - The demo API has no admin signer. The console receives the public admin address plus fee-payer and
@@ -136,7 +137,7 @@ instead of reusing allowances created with another deployment profile.
 5. Open `agentallowance-facilitator > Environment > Secret Files`.
 6. Add a secret file named `local-signer.json` by uploading the encrypted local keystore.
 7. Because `autoDeployTrigger` is off, trigger **Manual Deploy > Deploy latest commit** for the
-   facilitator, demo API, and console, in that order.
+   facilitator, demo API, console, and docs, in that order.
 
 The service URL has this facilitator endpoint:
 
@@ -188,13 +189,14 @@ pnpm --filter @agentallowance/testnet-cli run verify
 Do not call `settle` during deployment verification. A further settlement requires an explicit
 review of the exact amount, token, payer, merchant, facilitator URL, and successful verify response.
 
-## 5. Verify the demo API and console
+## 5. Verify the demo API, console, and docs
 
 Both public health routes must return `200` without credentials:
 
 ```bash
 curl --fail --show-error https://agentallowance-demo-api.onrender.com/health
 curl --fail --show-error https://agentallowance-console.onrender.com/health
+curl --fail --show-error https://agentallowance-docs.onrender.com/
 ```
 
 The dashboard and overview must be public. Operator mode must reject anonymous requests, then accept

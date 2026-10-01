@@ -21,11 +21,11 @@ OpenZeppelin facilitator base  100ccec1dcb597544a215f749796870e03c63c45
 | --- | ---: | --- |
 | Policy-aware x402 facilitator | **124** | Strict transfer/auth validation, settlement, replay boundaries, Relayer isolation, and malicious-input rejection |
 | Smart-account policy validator | **26** | Manifest-pinned WASM identity, two-entry delegated auth, and exact policy-event validation |
-| SDK and product flows | **33** | Treasury administration, merchant `402` lifecycle, console owner operations, and reconciliation |
+| SDK and product flows | **39** | Treasury administration, merchant `402` lifecycle, console owner operations, funding, sessions, and reconciliation |
 | Auth, payer, and shared primitives | **9** | Authorization construction, receipt binding, reason codes, and deterministic payload handling |
 | Soroban contracts | **3** | Spending limit, recipient restriction, expiry, and revoke behavior |
-| Desktop/mobile browser E2E | **6** | Public demo, wallet-owner routes, and the full Freighter allowance transaction lifecycle |
-| **Total** | **201** | Unit, integration, contract, and browser-level verification |
+| Desktop/mobile browser E2E | **8** | Public demo, wallet-owner routes, session restoration, and the full Freighter allowance transaction lifecycle |
+| **Total** | **209** | Unit, integration, contract, and browser-level verification |
 
 The TypeScript tests consume the compatibility proof's real transaction and simulation XDR. They
 confirm that the policy-aware validator accepts the proven payment while rejecting unapproved code,

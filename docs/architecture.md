@@ -66,7 +66,7 @@ merchant, delegated signer, or any address-auth entry.
 
 The public dashboard connects directly to Freighter without a password page or route transition. The
 server issues a one-time 120-second challenge bound to the requested G-account; any valid Testnet
-wallet signature can create a 15-minute HttpOnly owner session. Every owner endpoint resolves the
+wallet signature can create a signed 24-hour HttpOnly owner session. Every owner endpoint resolves the
 wallet address from that server-side session rather than accepting it from a request body.
 
 The treasury deployment salt binds product version, network, fee sponsor, wallet owner, treasury WASM,
@@ -196,6 +196,7 @@ of scope.
 ```text
 apps/
   console/                 public demo, per-wallet onboarding and owner administration
+  docs/                    searchable developer documentation portal
   x402-demo-api/           402 challenge, idempotent settlement, protected resource
   testnet-cli/             deploy, authorize, verify, settle, inspect, archive
 contracts/
