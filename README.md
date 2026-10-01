@@ -83,8 +83,8 @@ pnpm --filter @agentallowance/console start
 
 Open `http://127.0.0.1:3000`. The console creates and revokes real Testnet rules, runs approved,
 over-limit and unapproved-recipient x402 scenarios, and correlates decisions with receipts and Stellar
-Expert links. The merchant API listens on `http://127.0.0.1:3001`. The overview and `/operator` are
-public; the configured treasury admin connects Freighter and signs a short-lived challenge before
+Expert links. The merchant API listens on `http://127.0.0.1:3001`. The overview is public; the
+configured treasury admin connects Freighter directly from the dashboard and signs a short-lived challenge before
 creating or revoking allowances. Basic Auth remains an emergency API fallback.
 
 Dynamic facilitator profiles do not enumerate rule IDs. They pin the smart account,
