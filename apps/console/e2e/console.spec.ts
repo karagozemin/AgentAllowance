@@ -92,6 +92,7 @@ async function expectNoViewportOverflow(page: Page): Promise<void> {
 }
 
 async function mockWalletOwner(page: Page): Promise<void> {
+  let authenticated = false;
   await page.addInitScript(({ walletAddress }) => {
     window.addEventListener("message", (event) => {
       const request = event.data as { source?: string; messageId?: number; type?: string };
@@ -155,8 +156,19 @@ async function mockWalletOwner(page: Page): Promise<void> {
     updatedAt: "2026-08-04T12:00:00.000Z",
   };
   await page.route("**/api/owner/challenge?*", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ message: "Sign in", nonce: "nonce" }) }));
-  await page.route("**/api/owner/login", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, address: owner }) }));
-  await page.route("**/api/owner/profile", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ address: owner, treasury: ownerOverview.treasury, onboarded: true }) }));
+  await page.route("**/api/owner/login", (route) => {
+    authenticated = true;
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, address: owner }) });
+  });
+  await page.route("**/api/owner/profile", (route) => authenticated
+    ? route.fulfill({ contentType: "application/json", body: JSON.stringify({ address: owner, treasury: ownerOverview.treasury, onboarded: true }) })
+    : route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "OWNER_SESSION_REQUIRED" }) }));
+  await page.route("**/api/owner/session", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify(authenticated
+      ? { authenticated: true, profile: { address: owner, treasury: ownerOverview.treasury, onboarded: true } }
+      : { authenticated: false }),
+  }));
   await page.route("**/api/owner/overview", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(ownerOverview) }));
   await page.route("**/api/owner/allowances/prepare", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ operationId: "create-3", authPreimageXdr: "auth-preimage" }) }));
   await page.route("**/api/owner/allowances/submit", async (route) => {
@@ -220,5 +232,19 @@ test("shows the full Freighter allowance transaction lifecycle", async ({ page }
   await expect(page.getByRole("heading", { name: "Research agent is live." })).toBeVisible();
   await expect(page.getByText("ALLOWANCE #3 · ACTIVE")).toBeVisible();
   await expect(page.getByText("6f07e5383589...fda032")).toBeVisible();
+  await expectNoViewportOverflow(page);
+});
+
+test("restores the connected owner after a page refresh", async ({ page }) => {
+  await mockWalletOwner(page);
+  await page.goto("/app");
+  await page.getByRole("button", { name: "Connect Freighter" }).click();
+  await expect(page.getByRole("button", { name: "New allowance" })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole("button", { name: "New allowance" })).toBeVisible();
+  await expect(page.locator(".mode-badge")).toHaveText("My treasury");
+  await expect(page.getByRole("button", { name: "Connect Freighter" })).toHaveCount(0);
   await expectNoViewportOverflow(page);
 });

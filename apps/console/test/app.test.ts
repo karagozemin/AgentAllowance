@@ -127,6 +127,7 @@ describe("console API", () => {
     expect((await app.request("/health")).status).toBe(200);
     expect((await app.request("/")).status).toBe(200);
     expect((await app.request("/api/overview")).status).toBe(200);
+    await expect((await app.request("/api/owner/session")).json()).resolves.toEqual({ authenticated: false });
     const missing = await app.request("/operator");
     expect(missing.status).toBe(200);
     expect((await app.request("/operator", {
@@ -235,6 +236,22 @@ describe("console API", () => {
     expect((await app.request("/api/owner/profile", { headers: { Cookie: firstCookie } })).status).toBe(200);
     expect((await app.request("/api/owner/profile", { headers: { Cookie: secondCookie } })).status).toBe(200);
     expect(profile.mock.calls.map(([address]) => address)).toEqual([owner.publicKey(), second.publicKey()]);
+  });
+
+  test("keeps a signed owner session valid across server restarts", async () => {
+    const first = setup();
+    const cookie = await ownerCookie(first.app);
+    const restarted = setup();
+    const response = await restarted.app.request("/api/owner/profile", { headers: { Cookie: cookie } });
+    expect(response.status).toBe(200);
+    expect(restarted.profile).toHaveBeenCalledWith(owner.publicKey());
+  });
+
+  test("rejects a tampered owner session", async () => {
+    const { app } = setup();
+    const cookie = await ownerCookie(app);
+    const tampered = `${cookie.slice(0, -1)}${cookie.endsWith("A") ? "B" : "A"}`;
+    expect((await app.request("/api/owner/profile", { headers: { Cookie: tampered } })).status).toBe(401);
   });
 
   test("binds a login challenge to the wallet that requested it", async () => {
