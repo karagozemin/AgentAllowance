@@ -112,9 +112,10 @@ disable sponsored funding. `OWNER_TREASURY_VERSION` must change only when delibe
 to a new deterministic deployment profile.
 
 The Blueprint pins `STELLAR_TOKEN_CONTRACT` to the official Testnet USDC SAC
-`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`, matching the facilitator asset
-allowlist. Changing the asset produces a different deterministic owner treasury; reconnect and run
-onboarding instead of reusing allowances created for another token contract.
+`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` and pins the spending/recipient policy
+contracts to the same deployment recorded in the facilitator manifest. Changing the asset or either
+policy contract produces a different deterministic owner treasury; reconnect and run onboarding
+instead of reusing allowances created with another deployment profile.
 
 ## 3. Create or update the Blueprint
 
