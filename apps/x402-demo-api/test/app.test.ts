@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { encodePaymentSignature } from "@agentallowance/shared";
-import { Address } from "@stellar/stellar-sdk";
 import { createApp } from "../src/app.js";
 import { DemoPaymentStore } from "../src/store.js";
 
@@ -69,7 +68,7 @@ describe("x402 demo API", () => {
 
   test("accepts another policy-approved smart-account payer", async () => {
     const service = app();
-    const anotherPayer = Address.contract(Buffer.alloc(32, 9)).toString();
+    const anotherPayer = "CAEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQTD2L";
     const challenge = await (await service.request("/premium")).json() as {
       accepts: [Parameters<typeof encodePaymentSignature>[0]["accepted"]];
     };
