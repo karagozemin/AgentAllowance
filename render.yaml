@@ -36,11 +36,13 @@ services:
       - key: REQUEST_TIMEOUT_SECONDS
         value: "170"
       - key: ACTIX_WORKERS
-        value: "2"
+        value: "1"
       - key: TOKIO_WORKER_THREADS
         value: "1"
       - key: PLUGIN_USE_POOL
         value: "false"
+      - key: RELAYER_INTERNAL_PORT
+        value: "8080"
       - key: REDIS_POOL_MAX_SIZE
         value: "2"
       - key: MAX_CONNECTIONS
