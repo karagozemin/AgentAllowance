@@ -37,16 +37,8 @@ services:
         value: "1"
       - key: TOKIO_WORKER_THREADS
         value: "1"
-      - key: PLUGIN_MAX_CONCURRENCY
-        value: "1"
-      - key: PLUGIN_POOL_MIN_THREADS
-        value: "1"
-      - key: PLUGIN_POOL_MAX_THREADS
-        value: "1"
-      - key: PLUGIN_POOL_CONCURRENT_TASKS
-        value: "1"
-      - key: PLUGIN_WORKER_HEAP_MB
-        value: "128"
+      - key: PLUGIN_USE_POOL
+        value: "false"
       - key: REDIS_POOL_MAX_SIZE
         value: "2"
       - key: MAX_CONNECTIONS
@@ -55,4 +47,3 @@ services:
         value: "2"
       - key: RATE_LIMIT_BURST_SIZE
         value: "5"
-
