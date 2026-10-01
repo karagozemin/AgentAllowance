@@ -79,6 +79,18 @@ function credentialsMatch(authorization: string | undefined, username: string, p
   );
 }
 
+function decodeWalletSignature(value: string): Buffer {
+  const normalized = value.trim();
+  if (!/^[A-Za-z0-9+/]{86}==$/.test(normalized)) {
+    throw new Error("Wallet signature is not canonical base64");
+  }
+  const signature = Buffer.from(normalized, "base64");
+  if (signature.length !== 64 || signature.toString("base64") !== normalized) {
+    throw new Error("Wallet signature is not a 64-byte Ed25519 signature");
+  }
+  return signature;
+}
+
 export function createConsoleApp(config: ConsoleApiConfig): Hono {
   const app = new Hono();
   const challenges = new Map<string, { address: string; message: string; expiresAt: number }>();
@@ -114,8 +126,8 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     if (!challenge || challenge.expiresAt < Date.now()) return context.json({ error: "CHALLENGE_EXPIRED" }, 401);
     if (challenge.address !== body.address) return context.json({ error: "CHALLENGE_WALLET_MISMATCH" }, 401);
     try {
-      const signature = Buffer.from(body.signature, "base64");
-      if (!Keypair.fromPublicKey(body.address).verify(Buffer.from(challenge.message), signature)) {
+      const signature = decodeWalletSignature(body.signature);
+      if (!Keypair.fromPublicKey(body.address).verifyMessage(challenge.message, signature)) {
         return context.json({ error: "INVALID_WALLET_SIGNATURE" }, 401);
       }
     } catch { return context.json({ error: "INVALID_WALLET_SIGNATURE" }, 401); }

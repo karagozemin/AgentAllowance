@@ -91,6 +91,7 @@ export function App() {
       const signed = await signMessage(challenge.message, { address: address.address });
       const raw = signed.signedMessage;
       if (!raw) throw new Error(signed.error?.message ?? "Wallet signature was rejected");
+      if (signed.signerAddress !== address.address) throw new Error("Freighter signed with a different address");
       const signature = typeof raw === "string"
         ? raw
         : btoa(Array.from(raw, (byte) => String.fromCharCode(byte)).join(""));
