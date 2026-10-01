@@ -362,12 +362,37 @@ function PaymentLab({ overview, selectedId, onSelect, busy, result, onRun }: {
       <section className={`execution-stage ${running ? "running" : ""} ${result ? resultSuccess ? "success" : "danger" : ""}`}>
         <div className="stage-grid" aria-hidden="true" />
         {!result && !running && <div className="stage-idle"><span><TestTube2 /></span><strong>Execution environment ready</strong><p>Select a scenario to generate fresh, inspectable Testnet evidence.</p><div><i />FACILITATOR ONLINE</div></div>}
-        {running && <div className="stage-running"><span className="execution-ring"><img src="/agentallowance-logo.jpg" alt="" /></span><strong>Authorizing payment</strong><div className="execution-steps"><span className="done"><Check />Challenge</span><span className="active"><LoaderCircle className="spin" />Policy simulation</span><span>Settlement</span></div></div>}
+        {running && <ExecutionProgress />}
         {result && !running && <div className="stage-result"><span className="result-icon">{resultSuccess ? <Check /> : <ShieldX />}</span><small>{resultSuccess ? "SETTLEMENT COMPLETE" : "POLICY ENFORCED"}</small><strong>{result}</strong><p>{resultSuccess ? "Protected resource unlocked. Receipt matched to the original challenge." : "Authorization stopped before transfer. Treasury balance remains protected."}</p><button onClick={() => void onRun(resultSuccess ? "success" : result.includes("RECIPIENT") ? "unapproved-recipient" : "over-limit")}><RefreshCw />Run again</button></div>}
       </section>
     </div>
 
     <AttemptFeed attempts={overview.attempts.slice(0, 8)} assetCode={overview.assetCode} assetDecimals={overview.assetDecimals} live />
+  </div>;
+}
+
+function ExecutionProgress() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 250);
+    return () => window.clearInterval(timer);
+  }, []);
+  const phase = elapsed < 5
+    ? "Creating a fresh x402 challenge"
+    : elapsed < 12
+      ? "Building bounded authorization"
+      : elapsed < 22
+        ? "Facilitator is simulating policy"
+        : "Waiting for Stellar ledger confirmation";
+  const clock = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+  return <div className="stage-running" role="status" aria-live="polite">
+    <div className="execution-live-line"><span><i />LIVE TESTNET REQUEST</span><time>{clock}</time></div>
+    <span className="execution-ring"><img src="/agentallowance-logo.jpg" alt="" /></span>
+    <strong>Authorizing payment</strong>
+    <p className="execution-phase-copy">{phase}</p>
+    <div className="execution-steps"><span className="done"><Check />Challenge</span><span className="active"><LoaderCircle className="spin" />Policy enforcement</span><span>Settlement</span></div>
+    <div className="execution-wait-note"><Radio /><span><strong>Request is active</strong><small>Typical settlement: 20-45 seconds. Keep this tab open.</small></span></div>
   </div>;
 }
 

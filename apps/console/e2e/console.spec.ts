@@ -5,6 +5,10 @@ const merchant = "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ";
 const owner = "GBRAUS55PHX2NL5RRIMULZT2WIEBIYR2LLHIVZOHDPBWOWUJIE6S3UGA";
 
 async function mockOverview(page: Page): Promise<void> {
+  await page.route("**/api/public-demo/run", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, resource: { access: "PAID_AND_UNLOCKED" } }) });
+  });
   await page.route("**/api/owner/session", (route) => route.fulfill({
     contentType: "application/json",
     body: JSON.stringify({ authenticated: false }),
@@ -231,6 +235,10 @@ test("moves from the product landing into the live control plane", async ({ page
   await expect(allowanceSelect.locator('option[value="1"]')).toHaveAttribute("disabled", "");
   await expect(allowanceSelect.locator('option[value="1"]')).toContainText("expired");
   await expect(page.getByRole("button", { name: /Approved payment/ })).toBeVisible();
+  await page.getByRole("button", { name: /Approved payment/ }).click();
+  await expect(page.getByText("LIVE TESTNET REQUEST")).toBeVisible();
+  await expect(page.getByText("Typical settlement: 20-45 seconds. Keep this tab open.")).toBeVisible();
+  await expect(page.getByText("PAID_AND_UNLOCKED", { exact: true })).toBeVisible();
   await expectNoViewportOverflow(page);
   expect(errors).toEqual([]);
 });
