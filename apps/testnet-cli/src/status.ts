@@ -6,6 +6,7 @@ type Deployment = {
   smartAccount: string;
   merchant: string;
   spendingPolicy: string;
+  recipientPolicy: string;
   allowanceRuleId: number;
 };
 const deployment = await readRunJson<Deployment>("deployment.json");
@@ -25,8 +26,13 @@ const state = {
     "--context-rule-id", String(deployment.allowanceRuleId),
     "--smart-account", deployment.smartAccount,
   ])),
+  recipientPolicy: parse(invoke(deployment.recipientPolicy, "get_config", [
+    "--context-rule-id", String(deployment.allowanceRuleId),
+    "--smart-account", deployment.smartAccount,
+  ])),
 };
 const label = process.env.STATE_LABEL ?? "current";
 if (!/^[a-z0-9-]+$/i.test(label)) throw new Error("STATE_LABEL contains unsupported characters");
-await writeJson(await latestRunDirectory(), `state-${label}.json`, state);
+const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+await writeJson(await latestRunDirectory(), `state-${label}-${timestamp}.json`, state);
 console.log(JSON.stringify(state, null, 2));

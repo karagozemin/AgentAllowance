@@ -13,12 +13,19 @@ import {
   SPENDING_LIMIT,
   TOKEN,
 } from "./config.js";
-import { createRunDirectory, identityExists, stellar, writeJson, writeText } from "./runtime.js";
+import {
+  createRunDirectory,
+  identityExists,
+  stellar,
+  workspaceRoot,
+  writeJson,
+  writeText,
+} from "./runtime.js";
 
 const wasm = {
-  treasury: "target/wasm32v1-none/release/agentallowance_treasury_account.wasm",
-  spending: "target/wasm32v1-none/release/agentallowance_spending_limit_policy.wasm",
-  recipient: "target/wasm32v1-none/release/agentallowance_recipient_policy.wasm",
+  treasury: path.join(workspaceRoot, "target/wasm32v1-none/release/agentallowance_treasury_account.wasm"),
+  spending: path.join(workspaceRoot, "target/wasm32v1-none/release/agentallowance_spending_limit_policy.wasm"),
+  recipient: path.join(workspaceRoot, "target/wasm32v1-none/release/agentallowance_recipient_policy.wasm"),
 };
 
 function address(identity: string): string {
@@ -59,9 +66,11 @@ stellar(["contract", "build"], true);
 const latestLedger = await new rpc.Server(RPC_URL).getLatestLedger();
 const validUntil = Number(latestLedger.sequence) + ALLOWANCE_LIFETIME_LEDGERS;
 const feePayer = address(IDENTITIES.feePayer);
+const relayer = address(IDENTITIES.relayer);
 const admin = address(IDENTITIES.admin);
 const delegate = address(IDENTITIES.delegate);
 const merchant = address(IDENTITIES.merchant);
+const unapprovedRecipient = address(IDENTITIES.unapprovedRecipient);
 const runDirectory = await createRunDirectory();
 
 const spendingPolicy = deploy(wasm.spending, "agentallowance-spending-policy", IDENTITIES.feePayer, []);
@@ -92,9 +101,11 @@ const deployment = {
   rpcUrl: RPC_URL,
   token: TOKEN,
   feePayer,
+  relayer,
   admin,
   delegate,
   merchant,
+  unapprovedRecipient,
   spendingPolicy,
   recipientPolicy,
   smartAccount,

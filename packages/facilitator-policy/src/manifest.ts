@@ -20,10 +20,27 @@ export type FacilitatorPolicyManifest = {
 
 export function assertProductionManifest(manifest: FacilitatorPolicyManifest): void {
   if (!manifest.id.trim()) throw new Error("Policy manifest ID is required");
-  if (manifest.adapters.length === 0) throw new Error("At least one policy adapter is required");
+  if (!manifest.smartAccount || !/^C[A-Z2-7]{55}$/.test(manifest.smartAccount)) {
+    throw new Error("Policy manifest must pin a Stellar C-account payer");
+  }
+  if (!Number.isSafeInteger(manifest.expectedRuleId) || manifest.expectedRuleId! < 0) {
+    throw new Error("Policy manifest must pin a non-negative context rule ID");
+  }
+  if (manifest.adapters.length !== 1) {
+    throw new Error("MVP policy manifest requires exactly one spending-limit adapter");
+  }
 
   const identities = new Set<string>();
   for (const adapter of manifest.adapters) {
+    if (adapter.kind !== OPENZEPPELIN_SPENDING_LIMIT_V_0_7_2) {
+      throw new Error(`Unsupported policy adapter kind: ${String(adapter.kind)}`);
+    }
+    if (!/^C[A-Z2-7]{55}$/.test(adapter.contractId)) {
+      throw new Error(`Invalid Stellar policy contract ID: ${adapter.contractId}`);
+    }
+    if (!adapter.required) {
+      throw new Error("OpenZeppelin spending-limit event must be required in the MVP");
+    }
     if (!adapter.expectedWasmHash) {
       throw new Error(`Production adapter ${adapter.contractId} must pin expectedWasmHash`);
     }

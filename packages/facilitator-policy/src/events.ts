@@ -258,6 +258,8 @@ export function validatePolicyAwareSimulationEvents(options: {
     if (adapter.kind === OPENZEPPELIN_SPENDING_LIMIT_V_0_7_2) {
       const validationError = validateSpendingLimitEvent(event, options.expected);
       if (validationError) return validationError;
+    } else {
+      return fail("POLICY_EVENT_UNAPPROVED", `Unsupported policy adapter kind ${String(adapter.kind)}`);
     }
     approved.push({ kind: adapter.kind, contractId: event.contractId, eventName: event.eventName! });
   }

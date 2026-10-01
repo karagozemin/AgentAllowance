@@ -103,6 +103,25 @@ describe("delegated smart-account transaction validation", () => {
     expect(result).toMatchObject({ valid: false, reason: "AUTH_STRUCTURE_INVALID" });
   });
 
+  test("rejects unexpected signed context rule IDs", async () => {
+    const changed = mutateAuthEntries((entries) => {
+      const signature = entries[0]!.credentials().address().signature();
+      const ruleIds = signature.map()?.find(
+        (field) =>
+          field.key().switch().name === "scvSymbol" &&
+          field.key().sym().toString() === "context_rule_ids",
+      );
+      ruleIds?.val(xdr.ScVal.scvVec([xdr.ScVal.scvU32(deployment.ruleId), xdr.ScVal.scvU32(99)]));
+      return entries;
+    });
+    const result = await validateDelegatedPaymentTransaction({
+      transactionXdr: changed,
+      networkPassphrase: Networks.TESTNET,
+      expected: expectedPayment(),
+    });
+    expect(result).toMatchObject({ valid: false, reason: "AUTH_RULE_SELECTION_INVALID" });
+  });
+
   test("returns a valid policy-aware facilitator decision for the proof", async () => {
     const result = await verifyPolicyAwarePayment({
       x402Version: 2,

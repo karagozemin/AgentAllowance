@@ -134,8 +134,14 @@ export async function validateDelegatedAuthorizationEntries(options: {
 
   const payload = readAuthPayload(payerCredentials.signature());
   if (!payload) return invalid("AUTH_STRUCTURE_INVALID", "Malformed OpenZeppelin AuthPayload");
-  if (options.expectedRuleId !== undefined && payload.ruleIds[0] !== options.expectedRuleId) {
-    return invalid("AUTH_RULE_SELECTION_INVALID", "Selected rule does not match facilitator profile");
+  if (
+    options.expectedRuleId !== undefined &&
+    (payload.ruleIds.length !== 1 || payload.ruleIds[0] !== options.expectedRuleId)
+  ) {
+    return invalid(
+      "AUTH_RULE_SELECTION_INVALID",
+      "Signed rule selection must contain only the facilitator profile rule",
+    );
   }
 
   const delegateAddress = addressOf(delegateEntry);

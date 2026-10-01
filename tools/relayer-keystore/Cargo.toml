@@ -1,0 +1,11 @@
+[package]
+name = "agentallowance-relayer-keystore"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+oz-keystore = "=0.1.4"
+stellar-strkey = "=0.0.13"
+
+[workspace]

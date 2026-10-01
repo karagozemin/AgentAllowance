@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "deploy": "tsx src/deploy.ts",
+    "prepare-relayer": "tsx src/prepare-relayer.ts",
     "authorize": "tsx src/authorize.ts",
     "verify": "tsx src/verify.ts",
     "settle": "tsx src/settle.ts",
