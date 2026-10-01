@@ -198,7 +198,7 @@ export function LandingPage({ onLaunch, launching }: LandingPageProps) {
         <div className="verification-row">
           <div><strong>124</strong><span>facilitator checks</span></div>
           <div><strong>26</strong><span>policy checks</span></div>
-          <div><strong>199</strong><span>automated checks</span></div>
+          <div><strong>212</strong><span>automated checks</span></div>
           <div><strong>2</strong><span>signed auth entries</span></div>
         </div>
       </section>

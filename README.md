@@ -25,7 +25,7 @@
   <img alt="Stellar Testnet" src="https://img.shields.io/badge/Stellar-Testnet-111111" />
   <img alt="Official Testnet USDC" src="https://img.shields.io/badge/USDC-Testnet-2775CA" />
   <img alt="x402 v2" src="https://img.shields.io/badge/x402-v2-1f8f75" />
-  <img alt="Checks passing" src="https://img.shields.io/badge/checks-209_passing-20a878" />
+  <img alt="Checks passing" src="https://img.shields.io/badge/checks-212_passing-20a878" />
   <a href="https://www.npmjs.com/package/@agentallowance/sdk"><img alt="npm SDK" src="https://img.shields.io/badge/npm-%40agentallowance%2Fsdk-CB3837" /></a>
 </p>
 
@@ -163,7 +163,7 @@ Read the full [security model](docs/security.md) and
 
 ## Verification
 
-The repository currently passes **201 automated checks** across facilitator security, policy
+The repository currently passes **212 automated checks** across facilitator security, policy
 validation, SDK and product flows, Soroban contracts, and desktop/mobile browser journeys.
 
 ```bash
@@ -172,17 +172,18 @@ pnpm typecheck
 pnpm test
 pnpm test:contracts
 pnpm --filter @agentallowance/console test:e2e
+pnpm --filter @agentallowance/docs test:e2e
 ```
 
 | Surface | Checks |
 | --- | ---: |
 | Policy-aware x402 facilitator | 124 |
 | Smart-account policy validator | 26 |
-| SDK and product flows | 33 |
+| SDK and product flows | 39 |
 | Auth, payer, and shared primitives | 9 |
 | Soroban contracts | 3 |
-| Desktop/mobile browser E2E | 6 |
-| **Total** | **201** |
+| Desktop/mobile browser E2E | 11 |
+| **Total** | **212** |
 
 Pinned versions, complete commands, and clean-runner results are in
 [technical verification](docs/technical/verification.md).
