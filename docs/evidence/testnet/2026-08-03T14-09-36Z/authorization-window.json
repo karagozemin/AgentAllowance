@@ -1,0 +1,25 @@
+{
+  "network": "stellar:testnet",
+  "previousAttempt": {
+    "timeoutSeconds": 30,
+    "authorizationLedger": 3949191,
+    "validUntilLedger": 3949197,
+    "verifyResponse": {
+      "httpStatus": 200,
+      "isValid": false,
+      "invalidReason": "invalid_exact_stellar_payload_auth_already_expired"
+    },
+    "settlementAttempted": false
+  },
+  "fixedAttempt": {
+    "timeoutSeconds": 60,
+    "authorizationLedger": 3949246,
+    "validUntilLedger": 3949258,
+    "ledgerWindow": 12,
+    "enforcingSimulationSucceeded": true,
+    "authorizationEntryAddresses": [
+      "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
+      "GAO2CS7KBZS6DF4FOM4WJA3N2FUV4HSCVQI3BFJ4G233W7XJ7EBCAUKX"
+    ]
+  }
+}
