@@ -84,6 +84,7 @@ export function LandingPage({ onLaunch, launching }: LandingPageProps) {
         <a href="#use-cases">Use cases</a>
         <a href="#proof">Live proof</a>
         <a href="#architecture">Architecture</a>
+        <a href="https://agentallowance-docs.onrender.com/" target="_blank" rel="noreferrer">Docs</a>
       </nav>
       <button className="nav-launch" onClick={onLaunch}>Launch app <ArrowRight /></button>
     </header>
@@ -213,7 +214,7 @@ export function LandingPage({ onLaunch, launching }: LandingPageProps) {
     <footer className="landing-footer">
       <Brand compact />
       <span>Built on Stellar · Testnet only · Unaudited contracts</span>
-      <div><a href="https://github.com/karagozemin/AgentAllowance" target="_blank" rel="noreferrer">GitHub</a><a href="#proof">Evidence</a></div>
+      <div><a href="https://agentallowance-docs.onrender.com/" target="_blank" rel="noreferrer">Developer docs</a><a href="https://github.com/karagozemin/AgentAllowance" target="_blank" rel="noreferrer">GitHub</a><a href="#proof">Evidence</a></div>
     </footer>
   </div>;
 }
