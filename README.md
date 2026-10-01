@@ -18,6 +18,8 @@
   <img alt="x402 v2" src="https://img.shields.io/badge/x402-v2-1f8f75" />
   <img alt="OpenZeppelin Smart Accounts" src="https://img.shields.io/badge/OpenZeppelin-Smart_Accounts-4e5ee4" />
   <img alt="Status" src="https://img.shields.io/badge/status-live_testnet-20a878" />
+  <img alt="Facilitator verification" src="https://img.shields.io/badge/facilitator-124_checks-20a878" />
+  <img alt="Policy validation" src="https://img.shields.io/badge/policy-26_checks-4e5ee4" />
 </p>
 
 AgentAllowance is a policy-aware x402 infrastructure layer for delegated AI spending on Stellar.
@@ -126,8 +128,17 @@ pnpm --filter @agentallowance/console test:e2e
 pnpm --filter @agentallowance/x402-sdk-example typecheck
 ```
 
-The current suite passes 192 TypeScript unit/integration tests, 3 Rust contract tests, and 4
-desktop/mobile Playwright runs: 199 automated checks in total.
+The verification portfolio contains 199 automated checks:
+
+| Security surface | Checks | What it proves |
+| --- | ---: | --- |
+| Policy-aware x402 facilitator | **124** | Strict transfer/auth validation, settlement, replay boundaries, Relayer isolation and malicious-input rejection |
+| Smart-account policy validator | **26** | Manifest-pinned WASM identity, two-entry delegated auth and exact policy-event validation |
+| SDK and product flows | **33** | Treasury administration, merchant `402` lifecycle, console owner operations and reconciliation |
+| Auth, payer and shared primitives | **9** | Authorization construction, receipt binding, reason codes and deterministic payload handling |
+| Soroban contracts | **3** | Spending limit, recipient restriction, expiry and revoke behavior |
+| Desktop/mobile browser E2E | **4** | Public demo and wallet-owner journeys across supported viewports |
+| **Total** | **199** | Unit, integration, contract and browser-level verification |
 
 The timed clean-environment prerequisite path is `scripts/quickstart-testnet.sh`. It prints the elapsed
 time and leaves the merchant/API processes in separate terminals so a failed service cannot be hidden
