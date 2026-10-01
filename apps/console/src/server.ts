@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Address, Asset, Keypair, Networks, rpc, xdr } from "@stellar/stellar-sdk";
+import { serviceOrigin } from "@agentallowance/shared";
 import {
   AgentAllowance,
   SqliteEvidenceStore,
@@ -75,14 +76,10 @@ function bigintEnv(name: string, fallback: string): bigint {
   return BigInt(raw);
 }
 
-function serviceUrl(value: string): string {
-  return /^https?:\/\//u.test(value) ? value : `https://${value}`;
-}
-
 function facilitatorUrl(): string {
   const explicit = process.env.X402_FACILITATOR_URL?.trim();
   if (explicit) return explicit;
-  return `${serviceUrl(required("X402_FACILITATOR_HOST"))}/api/v1/plugins/x402-facilitator/call`;
+  return `${serviceOrigin(required("X402_FACILITATOR_HOST"))}/api/v1/plugins/x402-facilitator/call`;
 }
 
 function latestDeployment(): Deployment {
@@ -174,7 +171,7 @@ const networkPassphrase = Networks.TESTNET;
 const configuredFacilitatorUrl = facilitatorUrl();
 const rpcServer = new rpc.Server(rpcUrl);
 const delegatedSigners = Object.fromEntries(delegates.map((delegate) => [delegate.publicKey(), delegate]));
-const demoServiceUrl = serviceUrl(process.env.DEMO_SERVICE_URL ?? "http://127.0.0.1:3001");
+const demoServiceUrl = serviceOrigin(process.env.DEMO_SERVICE_URL ?? "http://127.0.0.1:3001");
 
 function makeAgentAllowance(options: {
   treasury: string;

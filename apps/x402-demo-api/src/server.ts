@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { serve } from "@hono/node-server";
+import { serviceOrigin } from "@agentallowance/shared";
 import { createApp } from "./app.js";
 import { DemoPaymentStore } from "./store.js";
 
@@ -16,14 +17,10 @@ function required(name: string): string {
   return value;
 }
 
-function serviceUrl(value: string): string {
-  return /^https?:\/\//u.test(value) ? value : `https://${value}`;
-}
-
 function facilitatorUrl(): string {
   const explicit = process.env.X402_FACILITATOR_URL?.trim();
   if (explicit) return explicit;
-  return `${serviceUrl(required("X402_FACILITATOR_HOST"))}/api/v1/plugins/x402-facilitator/call`;
+  return `${serviceOrigin(required("X402_FACILITATOR_HOST"))}/api/v1/plugins/x402-facilitator/call`;
 }
 
 type Deployment = {
