@@ -6,6 +6,8 @@ sleep after inactivity, have an ephemeral filesystem, and can take about a minut
 The Blueprint disables OpenZeppelin's persistent Node.js plugin worker pool because its startup heap
 budget exceeds the free instance's 512 MB memory; the Relayer uses its supported legacy ts-node
 execution path instead. This changes execution capacity, not facilitator validation.
+The first plugin call after a cold start can take tens of seconds, so the Testnet demo uses a
+90-second plugin timeout and a 100-second HTTP timeout.
 
 ## Security boundary
 
