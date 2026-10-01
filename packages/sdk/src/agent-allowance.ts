@@ -58,6 +58,7 @@ export type AgentAllowanceConfig = {
   adminAddress?: string;
   adminSigner?: Keypair;
   delegatedSigners: Record<string, Keypair>;
+  maxTransactionFeeStroops?: string;
   databasePath?: string;
   store?: EvidenceStore;
 };
@@ -458,6 +459,7 @@ export class AgentAllowance {
         delegatedSigner: signer,
         contextRuleId: allowance.contextRuleId,
         transactionSource: this.#config.transactionSource.publicKey(),
+        maxTransactionFeeStroops: this.#config.maxTransactionFeeStroops,
       }, requirements);
       this.#store.putAttempt(withUpdate(attempt, { state: "SIGNED", decision: "ALLOW" }));
       return { paymentPayload: built.paymentPayload, allowance };

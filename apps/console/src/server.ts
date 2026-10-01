@@ -170,6 +170,10 @@ const rpcUrl = process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.o
 const horizonUrl = process.env.STELLAR_HORIZON_URL ?? "https://horizon-testnet.stellar.org";
 const networkPassphrase = Networks.TESTNET;
 const configuredFacilitatorUrl = facilitatorUrl();
+const maxTransactionFeeStroops = process.env.X402_MAX_TRANSACTION_FEE_STROOPS?.trim() || "10000000";
+if (!/^\d+$/u.test(maxTransactionFeeStroops) || BigInt(maxTransactionFeeStroops) <= 0n) {
+  throw new Error("X402_MAX_TRANSACTION_FEE_STROOPS must be a positive stroop integer");
+}
 const rpcServer = new rpc.Server(rpcUrl);
 const delegatedSigners = Object.fromEntries(delegates.map((delegate) => [delegate.publicKey(), delegate]));
 const demoServiceUrl = serviceOrigin(process.env.DEMO_SERVICE_URL ?? "http://127.0.0.1:3001");
@@ -194,6 +198,7 @@ function makeAgentAllowance(options: {
     adminAddress: options.adminAddress,
     adminSigner: options.adminSigner,
     delegatedSigners,
+    maxTransactionFeeStroops,
     store: options.store,
   });
 }

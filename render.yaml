@@ -115,6 +115,8 @@ services:
         value: "10000"
       - key: NODE_ENV
         value: production
+      - key: X402_MAX_TRANSACTION_FEE_STROOPS
+        value: "10000000"
       - key: X402_FACILITATOR_URL
         value: https://agentallowance-facilitator.onrender.com/api/v1/plugins/x402-facilitator/call
       - key: X402_FACILITATOR_API_KEY

@@ -111,7 +111,7 @@ const config = {
         type: "stellar",
         relayer_id: "agentallowance-testnet",
         assets: [deployment.token],
-        maxTransactionFeeStroops: "2000000",
+        maxTransactionFeeStroops: "10000000",
         policy_manifests: [manifest],
       }],
     },

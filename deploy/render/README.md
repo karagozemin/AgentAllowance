@@ -9,6 +9,9 @@ execution path instead. This changes execution capacity, not facilitator validat
 The internal Relayer API rate limit must accommodate the burst of RPC calls made by merchant
 verification followed by settlement verification. Setting it below the Blueprint's `20` requests per
 second and `60` request burst can reject a valid payment midway through the flow.
+The payer derives its declared transaction fee from the latest Stellar simulation with ten percent
+headroom. `X402_MAX_TRANSACTION_FEE_STROOPS` and the facilitator's matching
+`maxTransactionFeeStroops` setting cap that declaration at `10000000` stroops for the Testnet demo.
 OpenZeppelin Relayer `1.7.0`'s legacy ts-node plugin socket does not reliably service nested RPC calls
 under constrained Render resources. The container therefore runs a minimal public adapter that loads
 the same bundled policy-aware handler once and calls the local first-party Relayer HTTP API for
