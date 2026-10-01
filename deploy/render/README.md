@@ -81,12 +81,24 @@ jq '{token,smartAccount,spendingPolicy,recipientPolicy,merchant,unapprovedRecipi
 | `RECIPIENT_POLICY_CONTRACT` | `recipientPolicy` |
 | `STELLAR_MERCHANT_ADDRESS` | `merchant` |
 | `STELLAR_UNAPPROVED_RECIPIENT_ADDRESS` | `unapprovedRecipient` |
-| `INITIAL_DELEGATED_SIGNER` | `delegate` |
-| `INITIAL_ALLOWANCE_RULE_ID` | `allowanceRuleId` |
-| `INITIAL_ALLOWANCE_VALID_UNTIL_LEDGER` | `validUntil` |
-| `SPENDING_LIMIT` | `spendingLimit` |
-| `PERIOD_LEDGERS` | `periodLedgers` |
-| `PUBLIC_DEMO_ALLOWANCE_ID` | `allowanceRuleId` |
+| `INITIAL_DELEGATED_SIGNER` | renewal `delegatedSigner` |
+| `INITIAL_ALLOWANCE_RULE_ID` | renewal `contextRuleId` |
+| `INITIAL_ALLOWANCE_VALID_UNTIL_LEDGER` | renewal `validUntilLedger` |
+| `SPENDING_LIMIT` | renewal `spendingLimit` |
+| `PERIOD_LEDGERS` | renewal `windowLedgers` |
+| `PUBLIC_DEMO_ALLOWANCE_ID` | renewal `contextRuleId` |
+
+The public demo allowance is time-bounded. When it expires, create a fresh rule against the same
+official Testnet USDC deployment, then use the command's `renderEnvironment` output to update the
+non-secret values pinned in `render.yaml`:
+
+```bash
+RUN_DIRECTORY=<official-usdc-run-directory> \
+pnpm --filter @agentallowance/testnet-cli renew-public-demo
+```
+
+This sends one real Testnet admin transaction. Run it once, archive the transaction hash, update the
+Blueprint, and verify the new rule with `ALLOWANCE_RULE_ID_OVERRIDE=<new-rule-id>` before deploying.
 
 The console needs Testnet-only fee-sponsor and delegated-signer material. The Blueprint pins the
 public demo's non-secret `STELLAR_ADMIN_ADDRESS` to the deployment's `admin` field; the corresponding
@@ -126,7 +138,8 @@ instead of reusing allowances created with another deployment profile.
 1. Push `render.yaml`, `deploy/render/`, and `deploy/apps/` to the GitHub branch Render will deploy.
 2. In Render, select **New > Blueprint** and connect the repository. If it already exists, open it and
    select **Sync Blueprint**.
-3. Enter every field marked `sync: false`. Render generates the facilitator `API_KEY`, shares it with
+3. Enter every field marked `sync: false`. These are secrets; public deployment and allowance values
+   are pinned in the Blueprint. Render generates the facilitator `API_KEY`, shares it with
    both Node services, and connects `REDIS_URL` without exposing either value to the browser.
    The Blueprint deliberately uses the services' public HTTPS origins for cross-service HTTP calls;
    this keeps the free-tier deployment independent of private-hostname availability.

@@ -9,6 +9,7 @@ the [Testnet settlement history](../evidence/settlement-history.md).
 
 | Claim | Evidence | What to inspect |
 | --- | --- | --- |
+| Public demo has a fresh active allowance | [Renewal evidence](../evidence/testnet/2026-08-05T00-04-29Z-public-demo-renewal/renewal.json) | rule `2`, 30-day expiry, policy configuration, positive treasury balance, and admin transaction hash |
 | Hosted wallet-owner USDC flow works end to end | [Latest hosted evidence](../evidence/testnet/2026-08-03T23-49-21Z-hosted-wallet-settlement/public-demo.json) | `PAID_AND_UNLOCKED`, hosted receipt, two policy blocks, transaction hash and exact state deltas |
 | Facilitator accepts the policy-aware transaction without weakening validation | [RPC transaction facts](../evidence/testnet/2026-08-03T23-49-21Z-hosted-wallet-settlement/transaction-result.json) | two auth entries, no sub-invocations, exact transfer and the single approved policy event |
 | Official Testnet USDC x402 payment settled | [USDC settlement](../evidence/testnet/2026-08-03T20-19-52Z/settlement.json) | asset SAC, `isValid`, transaction hash, amount, exact state deltas |

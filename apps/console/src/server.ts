@@ -201,16 +201,19 @@ function makeAgentAllowance(options: {
 function putInitialRecord(store: SqliteEvidenceStore, values: {
   treasury: string;
   delegate: string;
+  allowanceRuleId?: number;
   validUntil: number;
   spendingLimit: string;
   periodLedgers: number;
   merchant: string;
   transactionHash?: string;
 }): void {
-  if (store.getAllowance("1")) return;
+  const allowanceRuleId = values.allowanceRuleId ?? 1;
+  const allowanceId = String(allowanceRuleId);
+  if (store.getAllowance(allowanceId)) return;
   const timestamp = new Date().toISOString();
   store.putAllowance({
-    allowanceId: "1",
+    allowanceId,
     label: "Initial autonomous agent",
     network: "stellar:testnet",
     treasuryContract: values.treasury,
@@ -221,7 +224,7 @@ function putInitialRecord(store: SqliteEvidenceStore, values: {
     windowLedgers: values.periodLedgers,
     allowedRecipients: [values.merchant],
     validUntilLedger: values.validUntil,
-    contextRuleId: 1,
+    contextRuleId: allowanceRuleId,
     createTxHash: values.transactionHash,
     status: "ACTIVE",
     createdAt: timestamp,
@@ -238,11 +241,12 @@ const publicAgentAllowance = makeAgentAllowance({
   adminSigner: hostedAdminSigner,
   store: publicStore,
 });
-if (deployment.allowanceRuleId === 1 && deployment.validUntil !== undefined &&
+if (deployment.allowanceRuleId !== undefined && deployment.validUntil !== undefined &&
     deployment.spendingLimit !== undefined && deployment.periodLedgers !== undefined) {
   putInitialRecord(publicStore, {
     treasury: deployment.smartAccount,
     delegate: deployment.delegate,
+    allowanceRuleId: deployment.allowanceRuleId,
     validUntil: deployment.validUntil,
     spendingLimit: deployment.spendingLimit,
     periodLedgers: deployment.periodLedgers,

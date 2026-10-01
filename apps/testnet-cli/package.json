@@ -12,10 +12,12 @@
     "settle": "tsx src/settle.ts",
     "archive-settlement": "tsx src/archive-settlement.ts",
     "owner-onboarding": "tsx src/owner-onboarding.ts",
+    "renew-public-demo": "tsx src/renew-public-demo.ts",
     "status": "tsx src/status.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@agentallowance/sdk": "workspace:*",
     "@agentallowance/stellar-smart-account-auth": "workspace:*",
     "@stellar/stellar-sdk": "16.2.0",
     "dotenv": "16.6.1"
