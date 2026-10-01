@@ -4,10 +4,10 @@ This deployment is for the Testnet demo only. It runs the policy-aware facilitat
 OpenZeppelin Relayer `1.7.0` image and uses one Render Free Key Value instance. The Blueprint runs
 the three Docker web services on Render Starter instances.
 The Blueprint disables OpenZeppelin's persistent Node.js plugin worker pool because its startup heap
-budget exceeds the free instance's 512 MB memory; the Relayer uses its supported legacy ts-node
+budget exceeds the Starter instance's 512 MB memory; the Relayer uses its supported legacy ts-node
 execution path instead. This changes execution capacity, not facilitator validation.
 OpenZeppelin Relayer `1.7.0`'s legacy ts-node plugin socket does not reliably service nested RPC calls
-under Render Free CPU throttling. The container therefore runs a minimal public adapter that loads
+under constrained Render resources. The container therefore runs a minimal public adapter that loads
 the same bundled policy-aware handler once and calls the local first-party Relayer HTTP API for
 relayer info, read-only Stellar RPC, and transaction submission. The Relayer remains the signer,
 transaction source, fee payer, and settlement engine. The adapter preserves the existing endpoint
@@ -17,7 +17,7 @@ The Blueprint also defines two Node services and one static site. `agentallowanc
 merchant resource and accepts any smart-account payer approved by the policy-aware facilitator.
 `agentallowance-console` provides a bounded public demo plus per-wallet Testnet treasury onboarding.
 `agentallowance-docs` publishes the searchable developer portal without a server runtime.
-Both use SQLite under `/tmp`; payment-attempt history is lost when a free instance is replaced, while
+Both use SQLite under `/tmp`; payment-attempt history is lost when an instance is replaced, while
 deterministic owner treasury discovery, on-chain allowance reconstruction, balances, policy state, and
 settlement transactions remain available from Testnet.
 
@@ -144,7 +144,7 @@ instead of reusing allowances created with another deployment profile.
    are pinned in the Blueprint. Render generates the facilitator `API_KEY`, shares it with
    both Node services, and connects `REDIS_URL` without exposing either value to the browser.
    The Blueprint deliberately uses the services' public HTTPS origins for cross-service HTTP calls;
-   this keeps the free-tier deployment independent of private-hostname availability.
+   this keeps the deployment independent of private-hostname availability.
    The demo API requires `STELLAR_TOKEN_CONTRACT`, `TREASURY_CONTRACT`,
    `STELLAR_MERCHANT_ADDRESS`, and `STELLAR_UNAPPROVED_RECIPIENT_ADDRESS`; the console additionally
    requires its two policy contract addresses and signer/auth secrets. Do not leave these blank.
@@ -265,8 +265,8 @@ pnpm --filter @agentallowance/x402-demo-api build
 5. If the encrypted keystore or passphrase was exposed, rotate the Testnet Relayer identity and
    redeploy. An encrypted keystore is not a backup of the Stellar secret key.
 
-Render Free has no durable service guarantee. Keep the local Docker deployment as the deterministic
-fallback for judging and demos.
+The services use ephemeral filesystems and the Key Value instance remains on the Free plan. Keep the
+local Docker deployment as the deterministic fallback for judging and demos.
 
 ## Confirmed live result
 
