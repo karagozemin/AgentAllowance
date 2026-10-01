@@ -1,0 +1,90 @@
+{
+  "capturedAt": "2026-08-03T23:49:21Z",
+  "deployedCommit": "3bfe454",
+  "network": "stellar:testnet",
+  "facilitatorUrl": "https://agentallowance-facilitator.onrender.com/api/v1/plugins/x402-facilitator/call",
+  "asset": {
+    "code": "USDC",
+    "decimals": 7,
+    "contract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+  },
+  "treasury": "CAA2MNZ6Y7MKVY7BMGKH25W5NX4EAQDHRTMMOOXSLDKCIQAJMKIM34CR",
+  "merchant": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+  "delegatedSigner": "GAO2CS7KBZS6DF4FOM4WJA3N2FUV4HSCVQI3BFJ4G233W7XJ7EBCAUKX",
+  "allowance": {
+    "contextRuleId": 2,
+    "spendingLimitAtomic": "500000",
+    "periodLedgers": 720,
+    "validUntilLedger": 3956677
+  },
+  "attempts": [
+    {
+      "attemptId": "cdd715a1-b213-4613-b56f-e4613b05ba27",
+      "scenario": "approved-payment",
+      "amountAtomic": "100000",
+      "payTo": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "state": "UNLOCKED",
+      "decision": "ALLOW",
+      "facilitatorStatus": "settled",
+      "transaction": "449866cb3e7b5ee4e42efa1c4387a822a494fb4df03c9fbba8c0d9445f00fa0d",
+      "receiptHash": "850ad9319bc719c46079e98e9e0cb36299768be3415e616726067ef12476efe3",
+      "responseHash": "e31cf92f51be690fb4e61878a3b2b667309b40a4e2b29a29511736fb8bb58a38"
+    },
+    {
+      "attemptId": "341252d8-0c4f-4f89-be1f-79444203dbeb",
+      "scenario": "over-limit",
+      "amountAtomic": "1000001",
+      "payTo": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "state": "BLOCKED",
+      "decision": "BLOCK",
+      "reasonCode": "BUDGET_EXCEEDED",
+      "safeDetail": "1000001 exceeds 400000",
+      "transaction": null
+    },
+    {
+      "attemptId": "4855b1e3-c748-464e-a0f5-d15d9596aad9",
+      "scenario": "unapproved-recipient",
+      "amountAtomic": "100000",
+      "payTo": "GAQNJIU3EXRGIGKORCPNRPK46UINEKACCEKOYOIRF26ZJMNVEPRTCMOM",
+      "state": "BLOCKED",
+      "decision": "BLOCK",
+      "reasonCode": "RECIPIENT_NOT_ALLOWED",
+      "safeDetail": "Recipient is not in the on-chain policy",
+      "transaction": null
+    }
+  ],
+  "receipt": {
+    "success": true,
+    "transaction": "449866cb3e7b5ee4e42efa1c4387a822a494fb4df03c9fbba8c0d9445f00fa0d",
+    "network": "stellar:testnet",
+    "payer": "CAA2MNZ6Y7MKVY7BMGKH25W5NX4EAQDHRTMMOOXSLDKCIQAJMKIM34CR",
+    "amount": "100000",
+    "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "payTo": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+    "challengeId": "2eff29bc-be78-459e-8bb4-a20dbc4b73c8"
+  },
+  "state": {
+    "treasuryBalanceAtomic": {
+      "before": "100000",
+      "after": "0",
+      "delta": "-100000"
+    },
+    "merchantBalanceAtomic": {
+      "before": "200000",
+      "after": "300000",
+      "delta": "100000"
+    },
+    "spendingLimit": {
+      "before": "0",
+      "after": "100000",
+      "delta": "100000",
+      "limit": "500000",
+      "settlementLedger": 3956162
+    },
+    "recipientPolicy": {
+      "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      "recipient": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+      "unchanged": true
+    }
+  }
+}
