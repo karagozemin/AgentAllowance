@@ -1,8 +1,10 @@
-# Render Free deployment
+# Render deployment
 
 This deployment is for the Testnet demo only. It runs the policy-aware facilitator on the official
-OpenZeppelin Relayer `1.7.0` image and uses one Render Free Key Value instance. Free web services
-sleep after inactivity, have an ephemeral filesystem, and can take about a minute to wake up.
+OpenZeppelin Relayer `1.7.0` image and uses one Render Free Key Value instance. The Blueprint leaves
+the three Docker web-service plans unspecified so syncing it preserves each existing service's instance
+type. If a web service uses a Free instance, it sleeps after inactivity, has an ephemeral filesystem,
+and can take about a minute to wake up.
 The Blueprint disables OpenZeppelin's persistent Node.js plugin worker pool because its startup heap
 budget exceeds the free instance's 512 MB memory; the Relayer uses its supported legacy ts-node
 execution path instead. This changes execution capacity, not facilitator validation.
@@ -138,6 +140,10 @@ instead of reusing allowances created with another deployment profile.
 1. Push `render.yaml`, `deploy/render/`, and `deploy/apps/` to the GitHub branch Render will deploy.
 2. In Render, select **New > Blueprint** and connect the repository. If it already exists, open it and
    select **Sync Blueprint**.
+   The Blueprint intentionally omits `plan` for the three Docker web services. Render therefore
+   preserves their current instance types during updates instead of proposing a downgrade to Free.
+   For a brand-new service, Render defaults an omitted plan to Starter; review the instance type in
+   the Dashboard when creating or resizing services.
 3. Enter every field marked `sync: false`. These are secrets; public deployment and allowance values
    are pinned in the Blueprint. Render generates the facilitator `API_KEY`, shares it with
    both Node services, and connects `REDIS_URL` without exposing either value to the browser.

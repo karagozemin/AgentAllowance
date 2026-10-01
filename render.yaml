@@ -15,10 +15,10 @@ services:
     ipAllowList: []
     maxmemoryPolicy: noeviction
 
+  # Preserve the current Render instance type when syncing existing web services.
   - type: web
     name: agentallowance-facilitator
     runtime: docker
-    plan: free
     dockerfilePath: ./deploy/render/Dockerfile
     dockerContext: .
     healthCheckPath: /api/v1/health
@@ -65,7 +65,6 @@ services:
   - type: web
     name: agentallowance-demo-api
     runtime: docker
-    plan: free
     dockerfilePath: ./deploy/apps/Dockerfile
     dockerContext: .
     dockerCommand: pnpm --filter @agentallowance/x402-demo-api start
@@ -103,7 +102,6 @@ services:
   - type: web
     name: agentallowance-console
     runtime: docker
-    plan: free
     dockerfilePath: ./deploy/apps/Dockerfile
     dockerContext: .
     dockerCommand: pnpm --filter @agentallowance/console start
