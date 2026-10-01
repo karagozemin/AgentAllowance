@@ -107,3 +107,14 @@ review of the exact amount, token, payer, merchant, facilitator URL, and success
 
 Render Free has no durable service guarantee. Keep the local Docker deployment as the deterministic
 fallback for judging and demos.
+
+## Confirmed live result
+
+The deployed adapter completed a policy-aware Testnet verification and settlement on 2026-08-01.
+The verification returned `isValid: true`; settlement succeeded in ledger `3918507` with transaction
+`400a97d03eb6a866088d5ccb95660f1b52454ae661b6c88b87e2f31061c571a9`. Treasury, merchant, and
+spending-limit state each changed by exactly 100000 stroops. The archived attempt is:
+
+```text
+artifacts/testnet/runs/2026-08-01T15-10-40-519Z/attempts/2026-08-01T19-21-09-897Z-successful-payment/
+```
