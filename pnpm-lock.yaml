@@ -207,13 +207,13 @@ importers:
   packages/sdk:
     dependencies:
       '@agentallowance/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../shared
       '@agentallowance/stellar-smart-account-auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../stellar-smart-account-auth
       '@agentallowance/x402-payer':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../x402-payer
       '@stellar/stellar-sdk':
         specifier: 16.2.0
@@ -260,10 +260,10 @@ importers:
   packages/x402-payer:
     dependencies:
       '@agentallowance/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../shared
       '@agentallowance/stellar-smart-account-auth':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../stellar-smart-account-auth
       '@stellar/stellar-sdk':
         specifier: 16.2.0

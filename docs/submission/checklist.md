@@ -23,6 +23,7 @@ Testnet record; planned work is not marked complete.
 - [x] Environment template and Testnet USDC preparation command
 - [x] Local relayer and Render deployment guides
 - [x] Successful clean hosted-runner verification recorded below ten minutes
+- [x] Publish-ready `0.1.1` SDK packages, documentation, and clean-consumer tarball smoke test
 - [ ] Public npm release, optional P1
 
 ## Evidence and submission
@@ -41,4 +42,5 @@ Testnet record; planned work is not marked complete.
 
 The official Testnet USDC funding, local Relayer gates, and Freighter create/revoke evidence are
 complete. Remaining external release inputs are confirmation that the hosted demo runs the final
-commit, the recorded demo URL, and the release tag.
+commit, the recorded demo URL, the release tag, and npm authentication for the optional public SDK
+release.

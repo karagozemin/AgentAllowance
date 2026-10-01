@@ -123,6 +123,22 @@ diagrams.
 The independent [SDK example](apps/x402-sdk-example/README.md) consumes only
 `@agentallowance/sdk` and the merchant HTTP endpoint; it does not import the console or deployment CLI.
 
+## Integrate the SDK
+
+The Node.js SDK exposes allowance administration, strict x402 payment, receipt binding, evidence, and
+reconciliation through one typed API. Public `0.1.1` package manifests and tarballs are validated in a
+clean consumer project with:
+
+```bash
+pnpm test:sdk-package
+pnpm pack:sdk
+```
+
+Start with the [SDK quickstart](docs/sdk/quickstart.md), then use the
+[API](docs/sdk/api-reference.md), [typed errors](docs/sdk/errors.md), and
+[SDK security model](docs/sdk/security.md). Registry publication remains pending npm organization
+authentication; the independent workspace integration remains fully runnable today.
+
 ## Security properties
 
 - The treasury is a Stellar C-account; the AI agent never receives the owner's wallet key.
@@ -176,6 +192,8 @@ Pinned versions, complete commands, and clean-runner results are in
 
 ## Documentation
 
+- [Documentation hub](docs/README.md)
+- [SDK quickstart and API](docs/sdk/README.md)
 - [90-second demo runbook](docs/submission/demo-runbook.md)
 - [Reviewer evidence index](docs/submission/evidence-index.md)
 - [Testnet settlement history](docs/evidence/settlement-history.md)
@@ -188,8 +206,9 @@ Pinned versions, complete commands, and clean-runner results are in
 ## Scope
 
 This MVP is proven with the official Stellar Testnet USDC SAC. Multi-asset rules, MPP,
-`recipient_policy_enforced`, threshold administration, public npm publication, and production custody
-are intentionally out of scope. This is unaudited Testnet software.
+`recipient_policy_enforced`, threshold administration, and production custody are intentionally out
+of scope. Public npm artifacts are prepared as a P1 developer preview. This is unaudited Testnet
+software.
 
 The repository application and contract code is MIT-licensed. The upstream-derived
 `packages/relayer-plugin-x402-facilitator` retains its AGPL-3.0-only license and OpenZeppelin

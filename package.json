@@ -10,6 +10,8 @@
     "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
+    "pack:sdk": "node scripts/sdk-package.mjs pack",
+    "test:sdk-package": "node scripts/sdk-package.mjs smoke",
     "test:contracts": "cargo test --workspace",
     "build:contracts": "stellar contract build",
     "relayer:prepare": "pnpm --filter @agentallowance/testnet-cli prepare-relayer",
