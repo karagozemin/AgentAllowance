@@ -1,0 +1,37 @@
+{
+  "name": "@agentallowance/console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,green \"tsx watch src/server.ts\" \"vite --host 127.0.0.1\"",
+    "start": "tsx src/server.ts",
+    "build": "vite build && tsc -p tsconfig.server.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "test": "vitest run test",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@agentallowance/sdk": "workspace:*",
+    "@agentallowance/shared": "workspace:*",
+    "@hono/node-server": "1.19.7",
+    "@stellar/stellar-sdk": "16.2.0",
+    "dotenv": "16.6.1",
+    "hono": "4.10.7",
+    "lucide-react": "0.468.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "5.1.1",
+    "concurrently": "9.2.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vite": "7.2.2",
+    "vitest": "4.0.15"
+  }
+}

@@ -154,4 +154,85 @@ describe("delegated smart-account transaction validation", () => {
       contextRuleId: deployment.ruleId,
     });
   });
+
+  test("accepts a dynamically selected rule only when recipient policy state matches", async () => {
+    const policy = JSON.parse(readFileSync(`${runDirectory}/deployment.json`, "utf8")).policy as string;
+    const recipientPolicy = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
+    const result = await verifyPolicyAwarePayment({
+      x402Version: 2,
+      transactionXdr,
+      paymentRequirements: {
+        scheme: "exact",
+        network: "stellar:testnet",
+        amount: deployment.paymentAmount,
+        payTo: deployment.merchant,
+        asset: deployment.token,
+      },
+      simulationEvents: simulation.events,
+      manifest: {
+        id: "dynamic-openzeppelin-0.7.2",
+        network: "stellar:testnet",
+        smartAccount: deployment.smartAccount,
+        recipientPolicy: { contractId: recipientPolicy, expectedWasmHash: "22".repeat(32) },
+        adapters: [{
+          kind: OPENZEPPELIN_SPENDING_LIMIT_V_0_7_2,
+          contractId: policy,
+          expectedWasmHash: "11".repeat(32),
+          required: true,
+        }],
+      },
+      observedWasmHashes: {
+        [policy]: "11".repeat(32),
+        [recipientPolicy]: "22".repeat(32),
+      },
+      resolveAllowanceRule: async (contextRuleId) => ({
+        contextRuleId,
+        token: deployment.token,
+        recipient: deployment.merchant,
+      }),
+    });
+    expect(result).toMatchObject({ isValid: true, contextRuleId: deployment.ruleId });
+  });
+
+  test("rejects a dynamic rule whose recipient policy state does not match", async () => {
+    const policy = JSON.parse(readFileSync(`${runDirectory}/deployment.json`, "utf8")).policy as string;
+    const recipientPolicy = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
+    const result = await verifyPolicyAwarePayment({
+      x402Version: 2,
+      transactionXdr,
+      paymentRequirements: {
+        scheme: "exact",
+        network: "stellar:testnet",
+        amount: deployment.paymentAmount,
+        payTo: deployment.merchant,
+        asset: deployment.token,
+      },
+      simulationEvents: simulation.events,
+      manifest: {
+        id: "dynamic-openzeppelin-0.7.2",
+        network: "stellar:testnet",
+        smartAccount: deployment.smartAccount,
+        recipientPolicy: { contractId: recipientPolicy, expectedWasmHash: "22".repeat(32) },
+        adapters: [{
+          kind: OPENZEPPELIN_SPENDING_LIMIT_V_0_7_2,
+          contractId: policy,
+          expectedWasmHash: "11".repeat(32),
+          required: true,
+        }],
+      },
+      observedWasmHashes: {
+        [policy]: "11".repeat(32),
+        [recipientPolicy]: "22".repeat(32),
+      },
+      resolveAllowanceRule: async (contextRuleId) => ({
+        contextRuleId,
+        token: deployment.token,
+        recipient: deployment.smartAccount,
+      }),
+    });
+    expect(result).toMatchObject({
+      isValid: false,
+      invalidReason: "invalid_exact_stellar_payload_policy_manifest_mismatch",
+    });
+  });
 });

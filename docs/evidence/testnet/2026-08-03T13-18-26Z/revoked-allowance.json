@@ -1,0 +1,30 @@
+{
+  "network": "stellar:testnet",
+  "observedAt": "2026-08-03T13:35:55.083Z",
+  "currentLedger": 3948856,
+  "allowance": {
+    "allowanceId": "3",
+    "contextRuleId": 3,
+    "delegate": "GD3ILGD7EX3MM72FIZJUT3QUNXVNSA2PJENWWCHZEXPIEXAV2U4UWJDX",
+    "token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+    "merchant": "GDYGNUG2DKQVRJYYMXO5AUFEMMEMW7NIOGCQZSVYVNVMS4GNROZYJ5SZ",
+    "limitAtomic": "100000",
+    "spentAtomic": "0",
+    "createTransaction": "f5797562505b55ed4ef1f47c30115bb01a8c294215b1516319b8d8be024bbd00",
+    "revokeTransaction": "76ceb6a2e7ac9d07d2704f842d3c83b06441fde247347ff9490e40fa2f817e23",
+    "status": "REVOKED"
+  },
+  "attempt": {
+    "attemptId": "7db7437c-0f2c-40ce-b28c-b6468523ad75",
+    "amountAtomic": "100000",
+    "decision": "BLOCK",
+    "reasonCode": "ALLOWANCE_REVOKED",
+    "safeDetail": "Context rule was removed"
+  },
+  "state": {
+    "treasuryBalanceBeforeAtomic": "4700000",
+    "treasuryBalanceAfterAtomic": "4700000",
+    "spentBeforeAtomic": "0",
+    "spentAfterAtomic": "0"
+  }
+}

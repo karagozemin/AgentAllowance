@@ -5,11 +5,31 @@ import path from "node:path";
 import { IDENTITIES } from "./config.js";
 import { latestRunDirectory, stellar, workspaceRoot } from "./runtime.js";
 
-type Deployment = { token: string; relayer: string };
+type Deployment = {
+  token: string;
+  relayer: string;
+  smartAccount: string;
+  recipientPolicy: string;
+  wasmHashes: { recipientPolicy: string };
+};
 
 const runDirectory = await latestRunDirectory();
 const deployment = JSON.parse(await readFile(path.join(runDirectory, "deployment.json"), "utf8")) as Deployment;
-const manifest = JSON.parse(await readFile(path.join(runDirectory, "policy-manifest.json"), "utf8"));
+const sourceManifest = JSON.parse(await readFile(path.join(runDirectory, "policy-manifest.json"), "utf8")) as {
+  id: string;
+  network: "stellar:testnet";
+  adapters: unknown[];
+};
+const manifest = {
+  id: sourceManifest.id,
+  network: sourceManifest.network,
+  smartAccount: deployment.smartAccount,
+  recipientPolicy: {
+    contractId: deployment.recipientPolicy,
+    expectedWasmHash: deployment.wasmHashes.recipientPolicy,
+  },
+  adapters: sourceManifest.adapters,
+};
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const runtimeDirectory = path.join(workspaceRoot, "artifacts/local/relayer/runs", timestamp);
 const configDirectory = path.join(runtimeDirectory, "config");

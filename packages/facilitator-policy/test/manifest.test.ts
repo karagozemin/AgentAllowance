@@ -41,4 +41,18 @@ describe("production policy manifest", () => {
       adapters: [manifest.adapters[0]!, manifest.adapters[0]!],
     })).toThrow(/exactly one/);
   });
+
+  test("accepts a dynamic rule profile only with a pinned recipient policy", () => {
+    const dynamic: FacilitatorPolicyManifest = {
+      ...manifest,
+      expectedRuleId: undefined,
+      recipientPolicy: {
+        contractId: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+        expectedWasmHash: "22".repeat(32),
+      },
+    };
+    expect(() => assertProductionManifest(dynamic)).not.toThrow();
+    expect(() => assertProductionManifest({ ...dynamic, recipientPolicy: undefined }))
+      .toThrow(/recipient-policy contract/);
+  });
 });

@@ -21,6 +21,11 @@ The existing compatibility proof remains unchanged under
   `spending_limit_enforced` event, and pinned policy WASM identity.
 - `packages/relayer-plugin-x402-facilitator`: pinned OpenZeppelin fork with the policy-aware branch.
 - `apps/testnet-cli`: separate deploy, relayer preparation, scenario authorization, verify, settle, and status commands.
+- `packages/shared`: strict x402 v2 types, reason codes, amount conversion, hashing and receipts.
+- `packages/x402-payer`: smart-account transfer construction, enforcing simulation and facilitator client.
+- `packages/sdk`: multi-allowance administration, payer/fetch client, SQLite evidence and reconciliation.
+- `apps/x402-demo-api`: real HTTP 402 challenge, atomic settlement idempotency and protected resource.
+- `apps/console`: server-only signer boundary plus responsive React treasury and command console.
 
 ## Pinned versions
 
@@ -44,12 +49,44 @@ pnpm typecheck
 pnpm test
 cargo test --workspace
 stellar contract build
+pnpm --filter @agentallowance/console test:e2e
 ```
 
 The TypeScript tests consume the proof's real transaction and simulation XDR. They confirm that the
 policy-aware validator accepts the proven payment while rejecting an unapproved contract, unrelated
 event, duplicate policy event, duplicate transfer, unsuccessful-call event, code-hash mismatch, and a
 third authorization entry.
+
+## Run the complete local product
+
+Prepare and start the local OpenZeppelin Relayer. Generated API keys, keystores and passphrases stay
+under ignored `artifacts/local/` paths.
+
+```bash
+pnpm run relayer:prepare
+pnpm run relayer:start
+```
+
+Load the runtime environment, then start the merchant API and console in separate terminals:
+
+```bash
+set -a; source artifacts/local/relayer/latest.env; set +a
+pnpm --filter @agentallowance/x402-demo-api start
+```
+
+```bash
+set -a; source artifacts/local/relayer/latest.env; set +a
+pnpm --filter @agentallowance/console build
+pnpm --filter @agentallowance/console start
+```
+
+Open `http://127.0.0.1:3000`. The console creates and revokes real Testnet rules, runs approved,
+over-limit and unapproved-recipient x402 scenarios, and correlates decisions with receipts and Stellar
+Expert links. The merchant API listens on `http://127.0.0.1:3001`.
+
+Dynamic facilitator profiles do not enumerate rule IDs. They pin the smart account,
+recipient-policy contract/WASM and OpenZeppelin spending-policy contract/WASM, then resolve the signed
+rule ID against on-chain policy configuration.
 
 ## Testnet sequence
 
@@ -125,12 +162,41 @@ The matching before/after state snapshots are named `state-render-before-approve
 
 ## Facilitator deployment
 
-The hosted OpenZeppelin facilitator still rejects the valid policy event. The local fork uses the
-official `openzeppelin/openzeppelin-relayer:1.7.0` image and the deployment steps in
-[the integration guide](docs/openzeppelin-facilitator-integration.md). A Render Free Testnet demo
-deployment is defined by `render.yaml`; follow [the Render guide](deploy/render/README.md) without
-committing any signer or API secrets. Do not interpret the hosted endpoint's known
-`event_not_transfer` response as product compatibility.
+OpenZeppelin's unmodified hosted facilitator still rejects the valid policy event. The local fork uses
+the official `openzeppelin/openzeppelin-relayer:1.7.0` image and the deployment steps in
+[the integration guide](docs/openzeppelin-facilitator-integration.md). A Render Free Testnet demo is
+defined by `render.yaml`; follow [the Render guide](deploy/render/README.md) without committing any
+signer or API secrets.
 
-MPP, AgentAllowance UI, npm publication, multi-asset support, threshold administration, and hosted
-OpenZeppelin deployment are intentionally outside this MVP core.
+The currently running Render service was last confirmed with the original rule `1`-pinned manifest.
+On 2026-08-03 it rejected newly created rule `2` with
+`invalid_exact_stellar_payload_auth_structure`. Redeploy the current dynamic manifest build before
+using that hosted URL for new allowances. Hosted infrastructure is not assumed mutable.
+
+## Dynamic allowance Testnet result
+
+On 2026-08-03 the SDK created rule `2` for a second delegated signer. Independent reads confirmed the
+exact token, merchant, `500000`-stroop limit, 720-ledger period and expiry. Over-limit and
+unapproved-recipient scenarios were blocked without changing balances or policy state. The local
+policy-aware OpenZeppelin Relayer then completed the full
+`402 -> verify -> settle -> paid retry -> protected resource` flow:
+
+```text
+Payment amount        100000 stroops (0.01 XLM)
+Transaction           db9547660e7adb57f371fcbacacb635c0714e4f205024cdf1192bb00034afa1c
+Ledger                3948647
+Treasury balance      4800000 -> 4700000
+Merchant balance      100000200000 -> 100000300000
+Rule 2 spending state 0 -> 100000
+Resource result       PAID_AND_UNLOCKED
+```
+
+Sanitized append-only evidence is under `docs/evidence/testnet/2026-08-03T13-18-26Z/`. Earlier proof
+and Testnet artifact trees remain unchanged.
+
+## Scope and limitations
+
+The MVP uses the Testnet native XLM SAC from the source proof. The PRD's USDC target needs a separate
+asset configuration test; multi-asset rules are not included. MPP, `recipient_policy_enforced`,
+threshold administration, npm publication and production custody are excluded. See the
+[architecture](docs/architecture.md) and [security model](docs/security.md).

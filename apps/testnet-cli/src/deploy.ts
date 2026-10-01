@@ -69,6 +69,7 @@ const feePayer = address(IDENTITIES.feePayer);
 const relayer = address(IDENTITIES.relayer);
 const admin = address(IDENTITIES.admin);
 const delegate = address(IDENTITIES.delegate);
+const delegate2 = address(IDENTITIES.delegate2);
 const merchant = address(IDENTITIES.merchant);
 const unapprovedRecipient = address(IDENTITIES.unapprovedRecipient);
 const runDirectory = await createRunDirectory();
@@ -104,6 +105,7 @@ const deployment = {
   relayer,
   admin,
   delegate,
+  delegate2,
   merchant,
   unapprovedRecipient,
   spendingPolicy,

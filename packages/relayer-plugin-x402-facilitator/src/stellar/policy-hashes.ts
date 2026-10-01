@@ -15,19 +15,24 @@ export async function resolvePolicyWasmHashes(
 ): Promise<Readonly<Record<string, string>>> {
   const hashes: Record<string, string> = {};
 
-  for (const adapter of manifest.adapters) {
+  const contracts = [
+    ...manifest.adapters.map((adapter) => adapter.contractId),
+    ...(manifest.recipientPolicy ? [manifest.recipientPolicy.contractId] : []),
+  ];
+
+  for (const contractId of contracts) {
     const response = await relayer.rpc({
       method: "getLedgerEntries",
       id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER),
       jsonrpc: "2.0",
-      params: { keys: [contractInstanceLedgerKey(adapter.contractId)] },
+      params: { keys: [contractInstanceLedgerKey(contractId)] },
     });
     if (response.error) continue;
 
     const entryXdr = (response.result as LedgerEntriesResult | undefined)?.entries?.[0]?.xdr;
     if (!entryXdr) continue;
     try {
-      hashes[adapter.contractId] = extractContractWasmHash(entryXdr);
+      hashes[contractId] = extractContractWasmHash(entryXdr);
     } catch {
       // An absent or malformed instance remains an identity mismatch in the validator.
     }

@@ -20,7 +20,7 @@ export type DelegatedTransactionValidationResult =
 export async function validateDelegatedPaymentTransaction(options: {
   transactionXdr: string;
   networkPassphrase: string;
-  expected: { token: string; from: string; to: string; amount: bigint; contextRuleId: number };
+  expected: { token: string; from: string; to: string; amount: bigint; contextRuleId?: number };
 }): Promise<DelegatedTransactionValidationResult> {
   let transaction: Transaction;
   try {
