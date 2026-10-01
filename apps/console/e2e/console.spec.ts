@@ -9,11 +9,11 @@ async function mockOverview(page: Page): Promise<void> {
     body: JSON.stringify({
       network: "stellar:testnet",
       treasury: "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
-      asset: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
-      assetCode: "XLM",
+      asset: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+      assetCode: "USDC",
       assetDecimals: 7,
-      balanceAtomic: "4700000",
-      balanceDisplay: "0.47",
+      balanceAtomic: "5000000",
+      balanceDisplay: "0.5",
       currentLedger: 3948647,
       merchant,
       facilitatorUrl: "http://127.0.0.1:8080/api/v1/plugins/x402-facilitator/call",
@@ -23,7 +23,7 @@ async function mockOverview(page: Page): Promise<void> {
         label: "Data agent",
         network: "stellar:testnet",
         treasuryContract: "CDHMMKMC7L54AY5WWUDTFMTQFKEI5GO3U7NQCOUC4SFYICSQ5EQTBQCX",
-        assetContract: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+        assetContract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
         delegatedSigner: signer,
         maxSpendAtomic: "500000",
         spentAtomic: "100000",
@@ -44,7 +44,7 @@ async function mockOverview(page: Page): Promise<void> {
         challengeHash: "aa",
         amountAtomic: "100000",
         payTo: merchant,
-        assetContract: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+        assetContract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
         state: "UNLOCKED",
         decision: "ALLOW",
         txHash: "db9547660e7adb57f371fcbacacb635c0714e4f205024cdf1192bb00034afa1c",
@@ -63,7 +63,7 @@ async function expectNoViewportOverflow(page: Page): Promise<void> {
     pageScrollX: window.scrollX,
     bodyRight: Math.round(document.body.getBoundingClientRect().right),
     viewportWidth: window.innerWidth,
-    containers: [...document.querySelectorAll<HTMLElement>(".section-block, .table-wrap")].map((element) => ({
+    containers: [...document.querySelectorAll<HTMLElement>(".landing-hero, .console-content, .allowance-section, .attempt-section")].map((element) => ({
       className: element.className,
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
@@ -94,20 +94,29 @@ test.beforeEach(async ({ page }) => {
   await mockOverview(page);
 });
 
-test("renders overview and command center without viewport overflow", async ({ page }) => {
+test("moves from the product landing into the live control plane", async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "AgentAllowance" })).toBeVisible();
+  await expect(page.getByText("Autonomy without unlimited authority.")).toBeVisible();
+  await expect(page.getByText("Paid. Blocked. Verifiable.")).toBeVisible();
+  await expectNoViewportOverflow(page);
+
+  await page.getByRole("button", { name: /Enter the dApp/ }).click();
   await expect(page.getByRole("heading", { name: "Treasury overview" })).toBeVisible();
-  await expect(page.getByText("0.47 XLM")).toBeVisible();
+  await expect(page.getByText("0.5", { exact: true })).toBeVisible();
   await expect(page.getByText("Data agent")).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Freighter" })).toBeVisible();
   await expectNoViewportOverflow(page);
 
-  await page.getByRole("button", { name: "Command Center" }).click();
-  await expect(page.getByRole("heading", { name: "Live command center" })).toBeVisible();
+  if (await page.getByRole("button", { name: "Open navigation" }).isVisible()) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+  }
+  await page.getByRole("button", { name: "Payment lab", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Payment lab" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Approved payment/ })).toBeVisible();
   await expectNoViewportOverflow(page);
   expect(errors).toEqual([]);
@@ -115,6 +124,7 @@ test("renders overview and command center without viewport overflow", async ({ p
 
 test("keeps legacy operator route on the wallet-owner screen", async ({ page }) => {
   await page.goto("/operator");
+  await expect(page.getByRole("heading", { name: "Treasury overview" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Freighter" })).toBeVisible();
   await expectNoViewportOverflow(page);
 });
