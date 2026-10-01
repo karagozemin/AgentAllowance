@@ -374,26 +374,32 @@ export async function verify(
       );
     }
 
-    // 9. Validate auth entry expiration + re-simulate in parallel
-    // These are independent RPC calls that can safely run concurrently.
+    // 9. Validate auth entry expiration, then re-simulate. The legacy ts-node
+    // transport multiplexes calls over one socket, so keep these RPC requests
+    // sequential for low-resource relayer deployments.
     const maxTimeoutSeconds =
       paymentRequirements.maxTimeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
 
-    const [expirationResult, simulateRpcResponse] = await Promise.all([
-      validateAuthEntryExpirations(authEntries, relayer, maxTimeoutSeconds),
-      relayer.rpc({
-        method: "simulateTransaction",
-        id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER),
-        jsonrpc: "2.0",
-        params: {
-          transaction: stellarPayload.transaction,
-        },
-      }),
-    ]);
+    console.log("Verification RPC phase: auth expiration");
+    const expirationResult = await validateAuthEntryExpirations(
+      authEntries,
+      relayer,
+      maxTimeoutSeconds,
+    );
 
     if (!expirationResult.isValid) {
       return invalidResponse(expirationResult.error!, fromAddress);
     }
+
+    console.log("Verification RPC phase: enforcing simulation");
+    const simulateRpcResponse = await relayer.rpc({
+      method: "simulateTransaction",
+      id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER),
+      jsonrpc: "2.0",
+      params: {
+        transaction: stellarPayload.transaction,
+      },
+    });
 
     if (simulateRpcResponse.error) {
       console.error("Simulation RPC error:", simulateRpcResponse.error);
