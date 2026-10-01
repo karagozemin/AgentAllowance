@@ -204,8 +204,9 @@ The public root, overview, and anonymous `/operator` must return `200`. Open the
 **Connect Freighter**, connect any funded Testnet wallet, and sign the challenge. Select **Create my
 treasury**; confirm that the returned C-account differs for a second wallet. The constructor installs
 the connected wallet as admin and the configured delegate as the initial autonomous agent. Create and
-revoke additional rules through Freighter, then confirm the exact signer, recipient, amount, rolling
-window, and expiry. `Over limit` and `Unapproved recipient` must be rejected without settlement.
+revoke additional rules through Freighter's authorization-preimage signing flow, then confirm the
+exact signer, recipient, amount, rolling window, and expiry. `Over limit` and `Unapproved recipient`
+must be rejected without settlement.
 `Approved payment` performs a real Testnet `/verify` and `/settle`; run it only when another 100000
 atomic-unit Testnet payment is intended.
 

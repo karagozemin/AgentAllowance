@@ -413,11 +413,11 @@ async function createOwnerScope(owner: string): Promise<OwnerConsoleScope> {
         owner, kind: "create", prepared, expiresAt: Date.now() + 60_000,
         input: { ...input, windowLedgers, validUntilLedger },
       });
-      return { operationId, authEntryXdr: prepared.unsignedAdminEntryXdr };
+      return { operationId, authPreimageXdr: prepared.adminAuthPreimageXdr };
     },
-    submitCreate: async (operationId, signedAuthEntryXdr) => {
+    submitCreate: async (operationId, walletSignature) => {
       const pending = takePending(operationId, "create", owner);
-      const result = await serializeSource(() => submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr));
+      const result = await serializeSource(() => submitWalletAdminCall(adminConfig, pending.prepared, walletSignature));
       const context = result.retval as { id?: unknown };
       if (!Number.isInteger(context.id) || !pending.input) throw new Error("Created rule did not return a context rule ID");
       const timestamp = new Date().toISOString();
@@ -441,13 +441,13 @@ async function createOwnerScope(owner: string): Promise<OwnerConsoleScope> {
       pendingAdminOperations.put(operationId, {
         owner, kind: "revoke", prepared, allowanceId, expiresAt: Date.now() + 60_000,
       });
-      return { operationId, authEntryXdr: prepared.unsignedAdminEntryXdr };
+      return { operationId, authPreimageXdr: prepared.adminAuthPreimageXdr };
     },
-    submitRevoke: async (operationId, signedAuthEntryXdr) => {
+    submitRevoke: async (operationId, walletSignature) => {
       const pending = takePending(operationId, "revoke", owner);
       const record = pending.allowanceId ? store.getAllowance(pending.allowanceId) : undefined;
       if (!record || record.treasuryContract !== treasury) throw new Error("Allowance not found for this wallet");
-      const result = await serializeSource(() => submitWalletAdminCall(adminConfig, pending.prepared, signedAuthEntryXdr));
+      const result = await serializeSource(() => submitWalletAdminCall(adminConfig, pending.prepared, walletSignature));
       const updated: AllowanceRecord = {
         ...record, status: "REVOKED", revokeTxHash: result.transactionHash, updatedAt: new Date().toISOString(),
       };

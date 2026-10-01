@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { authorizeEntry, Keypair, Networks, xdr } from "@stellar/stellar-sdk";
+import { hash, Keypair, xdr } from "@stellar/stellar-sdk";
 import { workspaceRoot } from "./runtime.js";
 
 if (process.env.ALLOW_OWNER_ONBOARDING !== "yes") {
@@ -32,14 +32,9 @@ async function request<T>(route: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
-async function signPrepared(authEntryXdr: string): Promise<string> {
-  const entry = xdr.SorobanAuthorizationEntry.fromXDR(authEntryXdr, "base64");
-  const credentials = entry.credentials();
-  if (credentials.switch().name !== "sorobanCredentialsAddress") {
-    throw new Error("Prepared owner entry must use address credentials");
-  }
-  const expiration = credentials.address().signatureExpirationLedger();
-  return (await authorizeEntry(entry, owner, expiration, Networks.TESTNET)).toXDR("base64");
+function signPrepared(authPreimageXdr: string): string {
+  const preimage = xdr.HashIdPreimage.fromXDR(authPreimageXdr, "base64");
+  return owner.sign(hash(preimage.toXDR())).toString("base64");
 }
 
 const challenge = await request<{ nonce: string; message: string }>(
@@ -50,7 +45,7 @@ await request("/api/owner/login", {
   body: JSON.stringify({
     nonce: challenge.nonce,
     address: owner.publicKey(),
-    signature: owner.sign(Buffer.from(challenge.message)).toString("base64"),
+    signature: owner.signMessage(challenge.message).toString("base64"),
   }),
 });
 
@@ -77,7 +72,7 @@ if (overview.treasury !== onboarded.treasury || overview.availableSigners.length
   throw new Error("Owner overview does not match the deployed treasury profile");
 }
 
-const preparedCreate = await request<{ operationId: string; authEntryXdr: string }>(
+const preparedCreate = await request<{ operationId: string; authPreimageXdr: string }>(
   "/api/owner/allowances/prepare",
   {
     method: "POST",
@@ -101,11 +96,11 @@ const created = await request<{
   method: "POST",
   body: JSON.stringify({
     operationId: preparedCreate.operationId,
-    signedAuthEntryXdr: await signPrepared(preparedCreate.authEntryXdr),
+    walletSignature: signPrepared(preparedCreate.authPreimageXdr),
   }),
 });
 
-const preparedRevoke = await request<{ operationId: string; authEntryXdr: string }>(
+const preparedRevoke = await request<{ operationId: string; authPreimageXdr: string }>(
   `/api/owner/allowances/${created.allowanceId}/revoke/prepare`,
   { method: "POST" },
 );
@@ -118,7 +113,7 @@ const revoked = await request<{
   method: "POST",
   body: JSON.stringify({
     operationId: preparedRevoke.operationId,
-    signedAuthEntryXdr: await signPrepared(preparedRevoke.authEntryXdr),
+    walletSignature: signPrepared(preparedRevoke.authPreimageXdr),
   }),
 });
 

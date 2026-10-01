@@ -6,6 +6,8 @@ import {
   Keypair,
   Operation,
   TransactionBuilder,
+  authorizeEntry,
+  buildAuthorizationEntryPreimage,
   nativeToScVal,
   rpc,
   scvSortedMap,
@@ -46,6 +48,7 @@ export type PreparedWalletAdminCall = {
   sourceSequence: string;
   smartAccountEntryXdr: string;
   unsignedAdminEntryXdr: string;
+  adminAuthPreimageXdr: string;
   validUntilLedgerSeq: number;
 };
 
@@ -146,14 +149,64 @@ export async function prepareWalletAdminCall(
     validUntilLedgerSeq,
     networkPassphrase: config.networkPassphrase,
   });
+  const adminAuthPreimage = buildAuthorizationEntryPreimage(
+    auth.delegatedSignerEntry,
+    validUntilLedgerSeq,
+    config.networkPassphrase,
+  );
   return {
     method,
     argsXdr: args.map((value) => value.toXDR("base64")),
     sourceSequence,
     smartAccountEntryXdr: auth.smartAccountEntry.toXDR("base64"),
     unsignedAdminEntryXdr: auth.delegatedSignerEntry.toXDR("base64"),
+    adminAuthPreimageXdr: adminAuthPreimage.toXDR("base64"),
     validUntilLedgerSeq,
   };
+}
+
+function decodeFreighterSignature(value: string): Buffer {
+  const normalized = value.trim();
+  if (!/^[A-Za-z0-9+/]{86}==$/.test(normalized)) {
+    throw new Error("Freighter authorization signature must be canonical base64");
+  }
+  const signature = Buffer.from(normalized, "base64");
+  if (signature.length !== 64 || signature.toString("base64") !== normalized) {
+    throw new Error("Freighter authorization signature must contain exactly 64 bytes");
+  }
+  return signature;
+}
+
+export async function applyWalletAdminSignature(
+  config: AdminConfig,
+  prepared: PreparedWalletAdminCall,
+  walletSignature: string,
+): Promise<xdr.SorobanAuthorizationEntry> {
+  const unsigned = xdr.SorobanAuthorizationEntry.fromXDR(prepared.unsignedAdminEntryXdr, "base64");
+  const expectedPreimage = buildAuthorizationEntryPreimage(
+    unsigned,
+    prepared.validUntilLedgerSeq,
+    config.networkPassphrase,
+  );
+  if (expectedPreimage.toXDR("base64") !== prepared.adminAuthPreimageXdr) {
+    throw new Error("Prepared admin authorization preimage changed");
+  }
+  const signature = decodeFreighterSignature(walletSignature);
+  const signed = await authorizeEntry(
+    unsigned,
+    async (preimage, payload) => {
+      if (preimage.toXDR("base64") !== prepared.adminAuthPreimageXdr) {
+        throw new Error("Freighter signed a different admin authorization preimage");
+      }
+      if (!Keypair.fromPublicKey(config.adminAddress).verify(payload, signature)) {
+        throw new Error("Freighter authorization signature does not match treasury admin");
+      }
+      return { signature, publicKey: config.adminAddress };
+    },
+    prepared.validUntilLedgerSeq,
+    config.networkPassphrase,
+  );
+  return validateSignedWalletAdminEntry(config, prepared, signed.toXDR("base64"));
 }
 
 export function validateSignedWalletAdminEntry(config: AdminConfig, prepared: PreparedWalletAdminCall, signedXdr: string) {
@@ -179,14 +232,14 @@ export function validateSignedWalletAdminEntry(config: AdminConfig, prepared: Pr
 export async function submitWalletAdminCall(
   config: AdminConfig,
   prepared: PreparedWalletAdminCall,
-  signedAdminEntryXdr: string,
+  walletSignature: string,
 ): Promise<{ transactionHash: string; retval: unknown }> {
   const server = new rpc.Server(config.rpcUrl);
   const sourceSequence = (await new Horizon.Server(config.horizonUrl)
     .loadAccount(config.transactionSource.publicKey())).sequenceNumber();
   const args = prepared.argsXdr.map((value) => xdr.ScVal.fromXDR(value, "base64"));
   const smartEntry = xdr.SorobanAuthorizationEntry.fromXDR(prepared.smartAccountEntryXdr, "base64");
-  const signedEntry = validateSignedWalletAdminEntry(config, prepared, signedAdminEntryXdr);
+  const signedEntry = await applyWalletAdminSignature(config, prepared, walletSignature);
   const build = () => buildAdminTransaction(config, prepared.method, args, sourceSequence, [smartEntry, signedEntry]);
   const enforcing = await server._simulateTransaction(build(), undefined, "enforce");
   const retvalXdr = enforcing.results?.[0]?.xdr;

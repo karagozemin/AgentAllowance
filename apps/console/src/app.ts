@@ -35,10 +35,10 @@ export type ConsoleApiConfig = {
     scope: (owner: string) => Promise<OwnerConsoleScope>;
   };
   walletAdmin?: {
-    prepareCreate: (input: AllowanceCreateInput) => Promise<{ operationId: string; authEntryXdr: string }>;
-    submitCreate: (operationId: string, signedAuthEntryXdr: string) => Promise<AllowanceRecord>;
-    prepareRevoke: (allowanceId: string) => Promise<{ operationId: string; authEntryXdr: string }>;
-    submitRevoke: (operationId: string, signedAuthEntryXdr: string) => Promise<AllowanceRecord>;
+    prepareCreate: (input: AllowanceCreateInput) => Promise<{ operationId: string; authPreimageXdr: string }>;
+    submitCreate: (operationId: string, walletSignature: string) => Promise<AllowanceRecord>;
+    prepareRevoke: (allowanceId: string) => Promise<{ operationId: string; authPreimageXdr: string }>;
+    submitRevoke: (operationId: string, walletSignature: string) => Promise<AllowanceRecord>;
   };
   auth: {
     username: string;
@@ -308,8 +308,8 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
 
   app.post("/api/owner/allowances/submit", async (context) => {
     const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
-    const body = await context.req.json<{ operationId: string; signedAuthEntryXdr: string }>();
-    return context.json(await scope.walletAdmin.submitCreate(body.operationId, body.signedAuthEntryXdr), 201);
+    const body = await context.req.json<{ operationId: string; walletSignature: string }>();
+    return context.json(await scope.walletAdmin.submitCreate(body.operationId, body.walletSignature), 201);
   });
 
   app.post("/api/owner/allowances/:id/revoke/prepare", async (context) => {
@@ -319,8 +319,8 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
 
   app.post("/api/owner/allowances/revoke/submit", async (context) => {
     const scope = await config.ownerService.scope(currentOwner(context.req.header("Cookie")));
-    const body = await context.req.json<{ operationId: string; signedAuthEntryXdr: string }>();
-    return context.json(await scope.walletAdmin.submitRevoke(body.operationId, body.signedAuthEntryXdr));
+    const body = await context.req.json<{ operationId: string; walletSignature: string }>();
+    return context.json(await scope.walletAdmin.submitRevoke(body.operationId, body.walletSignature));
   });
 
   app.post("/api/demo/run", async (context) => {

@@ -57,14 +57,14 @@ export const api = {
   prepareWalletCreate: (body: {
     label: string; delegatedSigner: string; maxSpendAtomic: string;
     windowSeconds: number; recipient: string; expiresInSeconds: number;
-  }) => request<{ operationId: string; authEntryXdr: string }>("/api/owner/allowances/prepare", {
+  }) => request<{ operationId: string; authPreimageXdr: string }>("/api/owner/allowances/prepare", {
     method: "POST", body: JSON.stringify(body),
   }),
-  submitWalletCreate: (body: { operationId: string; signedAuthEntryXdr: string }) =>
+  submitWalletCreate: (body: { operationId: string; walletSignature: string }) =>
     request<AllowanceRecord>("/api/owner/allowances/submit", { method: "POST", body: JSON.stringify(body) }),
   prepareWalletRevoke: (allowanceId: string) =>
-    request<{ operationId: string; authEntryXdr: string }>(`/api/owner/allowances/${allowanceId}/revoke/prepare`, { method: "POST" }),
-  submitWalletRevoke: (body: { operationId: string; signedAuthEntryXdr: string }) =>
+    request<{ operationId: string; authPreimageXdr: string }>(`/api/owner/allowances/${allowanceId}/revoke/prepare`, { method: "POST" }),
+  submitWalletRevoke: (body: { operationId: string; walletSignature: string }) =>
     request<AllowanceRecord>("/api/owner/allowances/revoke/submit", { method: "POST", body: JSON.stringify(body) }),
   revoke: (allowance: AllowanceRecord) => request<AllowanceRecord>(
     `/api/allowances/${allowance.allowanceId}/revoke`,
