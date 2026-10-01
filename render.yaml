@@ -51,3 +51,100 @@ services:
         value: "2"
       - key: RATE_LIMIT_BURST_SIZE
         value: "5"
+
+  - type: web
+    name: agentallowance-demo-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/apps/Dockerfile
+    dockerContext: .
+    dockerCommand: pnpm --filter @agentallowance/x402-demo-api start
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: production
+      - key: X402_FACILITATOR_HOST
+        fromService:
+          type: web
+          name: agentallowance-facilitator
+          property: host
+      - key: X402_FACILITATOR_API_KEY
+        fromService:
+          type: web
+          name: agentallowance-facilitator
+          envVarKey: API_KEY
+      - key: STELLAR_RPC_URL
+        value: https://soroban-testnet.stellar.org
+      - key: STELLAR_TOKEN_CONTRACT
+        sync: false
+      - key: TREASURY_CONTRACT
+        sync: false
+      - key: STELLAR_MERCHANT_ADDRESS
+        sync: false
+      - key: STELLAR_UNAPPROVED_RECIPIENT_ADDRESS
+        sync: false
+      - key: PAYMENT_AMOUNT
+        value: "100000"
+      - key: OVER_LIMIT_AMOUNT
+        value: "1000001"
+      - key: DEMO_DATABASE_URL
+        value: /tmp/agentallowance/demo-api.db
+
+  - type: web
+    name: agentallowance-console
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/apps/Dockerfile
+    dockerContext: .
+    dockerCommand: pnpm --filter @agentallowance/console start
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: production
+      - key: X402_FACILITATOR_HOST
+        fromService:
+          type: web
+          name: agentallowance-facilitator
+          property: host
+      - key: X402_FACILITATOR_API_KEY
+        fromService:
+          type: web
+          name: agentallowance-facilitator
+          envVarKey: API_KEY
+      - key: DEMO_SERVICE_URL
+        fromService:
+          type: web
+          name: agentallowance-demo-api
+          property: host
+      - key: STELLAR_RPC_URL
+        value: https://soroban-testnet.stellar.org
+      - key: STELLAR_TOKEN_CONTRACT
+        sync: false
+      - key: TREASURY_CONTRACT
+        sync: false
+      - key: SPENDING_POLICY_CONTRACT
+        sync: false
+      - key: RECIPIENT_POLICY_CONTRACT
+        sync: false
+      - key: STELLAR_MERCHANT_ADDRESS
+        sync: false
+      - key: STELLAR_UNAPPROVED_RECIPIENT_ADDRESS
+        sync: false
+      - key: STELLAR_ADMIN_SECRET
+        sync: false
+      - key: STELLAR_FEE_PAYER_SECRET
+        sync: false
+      - key: STELLAR_DELEGATE_SECRETS
+        sync: false
+      - key: CONSOLE_AUTH_USERNAME
+        value: operator
+      - key: CONSOLE_AUTH_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        value: /tmp/agentallowance/console.db

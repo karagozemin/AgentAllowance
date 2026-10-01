@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import {
   AgentAllowanceError,
@@ -19,10 +20,58 @@ export type ConsoleApiConfig = {
   availableSigners: string[];
   demoServiceUrl: string;
   getLatestLedger: () => Promise<number>;
+  auth: {
+    username: string;
+    password: string;
+  };
 };
+
+function credentialsMatch(authorization: string | undefined, username: string, password: string): boolean {
+  if (!authorization?.startsWith("Basic ")) return false;
+  let decoded: string;
+  try {
+    decoded = Buffer.from(authorization.slice(6), "base64").toString("utf8");
+  } catch {
+    return false;
+  }
+  const separator = decoded.indexOf(":");
+  if (separator < 0) return false;
+  const supplied = `${decoded.slice(0, separator)}\0${decoded.slice(separator + 1)}`;
+  const expected = `${username}\0${password}`;
+  return timingSafeEqual(
+    createHash("sha256").update(supplied).digest(),
+    createHash("sha256").update(expected).digest(),
+  );
+}
 
 export function createConsoleApp(config: ConsoleApiConfig): Hono {
   const app = new Hono();
+
+  app.use("*", async (context, next) => {
+    context.header("X-Content-Type-Options", "nosniff");
+    context.header("X-Frame-Options", "DENY");
+    context.header("Referrer-Policy", "no-referrer");
+    context.header(
+      "Content-Security-Policy",
+      "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    );
+    context.header("Cache-Control", "no-store");
+    await next();
+  });
+
+  app.get("/health", (context) => context.json({ status: "ok", network: "stellar:testnet" }));
+
+  app.use("*", async (context, next) => {
+    if (!credentialsMatch(
+      context.req.header("Authorization"),
+      config.auth.username,
+      config.auth.password,
+    )) {
+      context.header("WWW-Authenticate", 'Basic realm="AgentAllowance Console", charset="UTF-8"');
+      return context.json({ error: "UNAUTHORIZED" }, 401);
+    }
+    await next();
+  });
 
   app.onError((error, context) => {
     if (error instanceof AgentAllowanceError) {

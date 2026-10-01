@@ -8,6 +8,7 @@ const treasury = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
 const token = "CBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4";
 const signer = Keypair.random().publicKey();
 const merchant = Keypair.random().publicKey();
+const authorization = `Basic ${Buffer.from("operator:test-password").toString("base64")}`;
 
 function allowance(): AllowanceRecord {
   return {
@@ -78,13 +79,40 @@ function setup() {
     availableSigners: [signer],
     demoServiceUrl: "http://demo.test",
     getLatestLedger: async () => 1500,
+    auth: { username: "operator", password: "test-password" },
   });
   return { app, create, revoke, payFetch, reconcile };
 }
 
 describe("console API", () => {
+  test("leaves health public and protects every other route", async () => {
+    const { app } = setup();
+    app.get("/", (context) => context.text("console"));
+    expect((await app.request("/health")).status).toBe(200);
+    expect((await app.request("/")).status).toBe(401);
+    const missing = await app.request("/api/overview");
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("WWW-Authenticate")).toContain("Basic");
+    expect((await app.request("/api/overview", {
+      headers: { Authorization: "Basic malformed" },
+    })).status).toBe(401);
+    expect((await app.request("/api/overview", {
+      headers: {
+        Authorization: `Basic ${Buffer.from("operator:wrong-password").toString("base64")}`,
+      },
+    })).status).toBe(401);
+    expect((await app.request("/api/overview", {
+      headers: { Authorization: authorization },
+    })).status).toBe(200);
+    expect((await app.request("/", {
+      headers: { Authorization: authorization },
+    })).status).toBe(200);
+  });
+
   test("returns treasury, allowance and evidence state without signer secrets", async () => {
-    const response = await setup().app.request("/api/overview");
+    const response = await setup().app.request("/api/overview", {
+      headers: { Authorization: authorization },
+    });
     expect(response.status).toBe(200);
     const raw = await response.text();
     expect(JSON.parse(raw)).toMatchObject({
@@ -104,7 +132,7 @@ describe("console API", () => {
     const { app, create } = setup();
     const response = await app.request("/api/allowances", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: authorization },
       body: JSON.stringify({
         label: "data-agent",
         delegatedSigner: signer,
@@ -122,7 +150,7 @@ describe("console API", () => {
     const { app, revoke } = setup();
     const response = await app.request("/api/allowances/2/revoke", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: authorization },
       body: JSON.stringify({ allowanceId: "2", delegatedSigner: Keypair.random().publicKey() }),
     });
     expect(response.status).toBe(400);
@@ -134,7 +162,7 @@ describe("console API", () => {
     payFetch.mockRejectedValueOnce(new AgentAllowanceError("RECIPIENT_NOT_ALLOWED", { attemptId: "attempt-2" }));
     const blocked = await app.request("/api/demo/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: authorization },
       body: JSON.stringify({ allowanceId: "2", scenario: "unapproved-recipient" }),
     });
     expect(blocked.status).toBe(400);
@@ -146,7 +174,7 @@ describe("console API", () => {
 
     const invalid = await app.request("/api/demo/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: authorization },
       body: JSON.stringify({ allowanceId: "2", scenario: "arbitrary" }),
     });
     expect(invalid.status).toBe(400);
@@ -154,7 +182,9 @@ describe("console API", () => {
 
   test("exposes reconciliation for uncertain attempts", async () => {
     const { app, reconcile } = setup();
-    expect((await app.request("/api/attempts/attempt-1/reconcile")).status).toBe(200);
+    expect((await app.request("/api/attempts/attempt-1/reconcile", {
+      headers: { Authorization: authorization },
+    })).status).toBe(200);
     expect(reconcile).toHaveBeenCalledWith("attempt-1");
   });
 });
