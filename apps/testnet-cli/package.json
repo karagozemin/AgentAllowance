@@ -11,6 +11,7 @@
     "verify": "tsx src/verify.ts",
     "settle": "tsx src/settle.ts",
     "archive-settlement": "tsx src/archive-settlement.ts",
+    "owner-onboarding": "tsx src/owner-onboarding.ts",
     "status": "tsx src/status.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

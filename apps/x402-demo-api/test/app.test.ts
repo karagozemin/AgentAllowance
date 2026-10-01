@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { encodePaymentSignature } from "@agentallowance/shared";
+import { Address } from "@stellar/stellar-sdk";
 import { createApp } from "../src/app.js";
 import { DemoPaymentStore } from "../src/store.js";
 
@@ -66,8 +67,9 @@ describe("x402 demo API", () => {
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/settle"))).toHaveLength(1);
   });
 
-  test("rejects a verified payment when the facilitator reports another payer", async () => {
+  test("accepts another policy-approved smart-account payer", async () => {
     const service = app();
+    const anotherPayer = Address.contract(Buffer.alloc(32, 9)).toString();
     const challenge = await (await service.request("/premium")).json() as {
       accepts: [Parameters<typeof encodePaymentSignature>[0]["accepted"]];
     };
@@ -78,19 +80,35 @@ describe("x402 demo API", () => {
     });
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       if (String(input).endsWith("/verify")) {
-        return Response.json({ isValid: true, payer: merchant });
+        return Response.json({ isValid: true, payer: anotherPayer });
       }
-      throw new Error("Settlement must not be called");
+      if (String(input).endsWith("/settle")) {
+        return Response.json({ success: true, transaction: "33".repeat(32), network: "stellar:testnet", payer: anotherPayer });
+      }
+      throw new Error("Unexpected request");
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await service.request("/premium", { headers: { "PAYMENT-SIGNATURE": signature } });
-    expect(response.status).toBe(402);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "FACILITATOR_REJECTED",
-      reason: "payer_mismatch",
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ treasury: anotherPayer });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("rejects a facilitator response without a C-account payer", async () => {
+    const service = app();
+    const challenge = await (await service.request("/premium")).json() as {
+      accepts: [Parameters<typeof encodePaymentSignature>[0]["accepted"]];
+    };
+    const signature = encodePaymentSignature({
+      x402Version: 2,
+      accepted: challenge.accepts[0],
+      payload: { transaction: "AAAA" },
     });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ isValid: true, payer: merchant })));
+    const response = await service.request("/premium", { headers: { "PAYMENT-SIGNATURE": signature } });
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toMatchObject({ reason: "invalid_smart_account_payer" });
   });
 
   test("atomically allows only one in-flight settlement for a challenge", async () => {

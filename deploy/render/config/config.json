@@ -52,7 +52,7 @@
               {
                 "id": "agentallowance-testnet-2026-08-03T20-02-22-677Z",
                 "network": "stellar:testnet",
-                "smartAccount": "CBAADH2QKFF35VREUCTKB4BQ5JYS5DE37IAAJEV6IEKQOEFNYK2GSB66",
+                "smartAccountWasmHash": "27a6c9e10a9046899ab76c0191de6efe2cf678d36eeb385277a5afe07bea040a",
                 "recipientPolicy": {
                   "contractId": "CBNVPB5CFXOIAGWAZOZJGOZDVGJPRG5FCNC3777R327U4NDORO4E2BT3",
                   "expectedWasmHash": "7bf8ab8f8cefebb2cc7699a9a9d3863213814fa2cbb8e17dbd654797d2a5abb9"

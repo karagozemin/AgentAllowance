@@ -55,4 +55,26 @@ describe("production policy manifest", () => {
     expect(() => assertProductionManifest({ ...dynamic, recipientPolicy: undefined }))
       .toThrow(/recipient-policy contract/);
   });
+
+  test("accepts a multi-tenant profile only with a pinned smart-account WASM hash", () => {
+    const multiTenant: FacilitatorPolicyManifest = {
+      ...manifest,
+      smartAccount: undefined,
+      smartAccountWasmHash: "33".repeat(32),
+      expectedRuleId: undefined,
+      recipientPolicy: {
+        contractId: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+        expectedWasmHash: "22".repeat(32),
+      },
+    };
+    expect(() => assertProductionManifest(multiTenant)).not.toThrow();
+    expect(() => assertProductionManifest({
+      ...multiTenant,
+      smartAccountWasmHash: undefined,
+    })).toThrow(/address or WASM hash/);
+    expect(() => assertProductionManifest({
+      ...multiTenant,
+      smartAccountWasmHash: "not-a-hash",
+    })).toThrow(/SHA-256 hash/);
+  });
 });

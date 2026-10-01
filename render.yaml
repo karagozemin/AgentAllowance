@@ -132,6 +132,8 @@ services:
         value: "7"
       - key: TREASURY_CONTRACT
         sync: false
+      - key: TREASURY_WASM_HASH
+        value: 27a6c9e10a9046899ab76c0191de6efe2cf678d36eeb385277a5afe07bea040a
       - key: SPENDING_POLICY_CONTRACT
         sync: false
       - key: RECIPIENT_POLICY_CONTRACT
@@ -166,3 +168,15 @@ services:
         sync: false
       - key: DATABASE_URL
         value: /tmp/agentallowance/console.db
+      - key: OWNER_DATABASE_DIRECTORY
+        value: /tmp/agentallowance/owners
+      - key: OWNER_INITIAL_SPENDING_LIMIT
+        value: "1000000"
+      - key: OWNER_PERIOD_LEDGERS
+        value: "720"
+      - key: OWNER_ALLOWANCE_LIFETIME_LEDGERS
+        value: "17280"
+      - key: OWNER_INITIAL_FUNDING_ATOMIC
+        value: "100000"
+      - key: OWNER_TREASURY_VERSION
+        value: treasury-v1

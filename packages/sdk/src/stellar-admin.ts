@@ -182,10 +182,12 @@ export async function submitWalletAdminCall(
   signedAdminEntryXdr: string,
 ): Promise<{ transactionHash: string; retval: unknown }> {
   const server = new rpc.Server(config.rpcUrl);
+  const sourceSequence = (await new Horizon.Server(config.horizonUrl)
+    .loadAccount(config.transactionSource.publicKey())).sequenceNumber();
   const args = prepared.argsXdr.map((value) => xdr.ScVal.fromXDR(value, "base64"));
   const smartEntry = xdr.SorobanAuthorizationEntry.fromXDR(prepared.smartAccountEntryXdr, "base64");
   const signedEntry = validateSignedWalletAdminEntry(config, prepared, signedAdminEntryXdr);
-  const build = () => buildAdminTransaction(config, prepared.method, args, prepared.sourceSequence, [smartEntry, signedEntry]);
+  const build = () => buildAdminTransaction(config, prepared.method, args, sourceSequence, [smartEntry, signedEntry]);
   const enforcing = await server._simulateTransaction(build(), undefined, "enforce");
   const retvalXdr = enforcing.results?.[0]?.xdr;
   if (enforcing.error || !retvalXdr) {

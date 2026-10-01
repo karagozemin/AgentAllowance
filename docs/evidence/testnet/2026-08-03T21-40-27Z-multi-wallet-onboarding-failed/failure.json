@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-08-03T21:40:27Z",
+  "network": "stellar:testnet",
+  "classification": "owner_account_not_activated",
+  "owner": "GBUUL53HTW7ZQGRY3UCJWDEV7ZSNEF6Z3LUH74ZSUJJ7T75PR2ISFUBU",
+  "treasury": "CDWJQFER64MZ6UGP3NPMKKNNO6DG7K33L5ROQGSLAXSKEGTTVUYNYDPM",
+  "treasuryDeploymentSucceeded": true,
+  "sponsoredFundingAttempted": true,
+  "allowanceCreateSubmitted": false,
+  "allowanceCreateSettled": false,
+  "failureStage": "wallet-admin enforcing simulation",
+  "exactError": "HostError: Error(Auth, InvalidAction)",
+  "diagnosticCondition": "Delegated admin G-account lookup returned Error(Storage, MissingValue): trying to get non-existing value for account",
+  "resolution": "The reproduction script now activates each ephemeral owner through Stellar Testnet Friendbot before wallet authentication. A fresh wallet and treasury were used for the successful rerun; this failed treasury was not reused.",
+  "secretArchived": false
+}

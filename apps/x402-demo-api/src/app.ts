@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
-import { rpc } from "@stellar/stellar-sdk";
+import { Address, rpc } from "@stellar/stellar-sdk";
 import {
   decodePaymentSignature,
   encodePaymentResponse,
@@ -108,17 +108,25 @@ export function createApp(config: DemoApiConfig) {
         detail: error instanceof Error ? error.message : "Facilitator verification failed",
       }, 502);
     }
-    if (!verified.isValid || verified.payer !== config.treasuryContract) {
+    let verifiedPayer: string | undefined;
+    try {
+      if (verified.isValid && verified.payer && Address.fromString(verified.payer).type === "contract") {
+        verifiedPayer = verified.payer;
+      }
+    } catch {
+      verifiedPayer = undefined;
+    }
+    if (!verified.isValid || !verifiedPayer) {
       config.store.release(challengeId, payloadHash);
       return context.json({
         error: "FACILITATOR_REJECTED",
-        reason: verified.isValid ? "payer_mismatch" : verified.invalidReason,
+        reason: verified.isValid ? "invalid_smart_account_payer" : verified.invalidReason,
       }, 402);
     }
     let receipt: SettlementReceipt;
     try {
       receipt = await facilitator.settle(payload, challenge.requirements);
-      assertReceiptMatches(receipt, challenge.requirements, config.treasuryContract);
+      assertReceiptMatches(receipt, challenge.requirements, verifiedPayer);
     } catch (error) {
       return context.json({
         error: "SETTLEMENT_FAILED",
@@ -150,7 +158,7 @@ export function createApp(config: DemoApiConfig) {
       access: "PAID_AND_UNLOCKED",
       network: currentConfig.network,
       latestLedger,
-      treasury: currentConfig.treasuryContract,
+      treasury: receipt.payer,
       transaction: receipt.transaction,
       generatedAt: new Date().toISOString(),
     });

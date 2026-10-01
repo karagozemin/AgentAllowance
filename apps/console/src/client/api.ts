@@ -17,6 +17,15 @@ export type Overview = {
   refreshedAt: string;
 };
 
+export type OwnerProfile = {
+  address: string;
+  treasury: string;
+  onboarded: boolean;
+  deploymentTransaction?: string;
+  fundingTransaction?: string;
+  fundingError?: string;
+};
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -29,9 +38,14 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   overview: () => request<Overview>("/api/overview"),
-  ownerChallenge: () => request<{ message: string; nonce: string; admin: string | null }>("/api/owner/challenge"),
+  ownerOverview: () => request<Overview>("/api/owner/overview"),
+  ownerChallenge: (address: string) => request<{ message: string; nonce: string }>(
+    `/api/owner/challenge?address=${encodeURIComponent(address)}`,
+  ),
   ownerLogin: (body: { nonce: string; address: string; signature: string }) =>
     request<{ ok: true; address: string }>("/api/owner/login", { method: "POST", body: JSON.stringify(body) }),
+  ownerProfile: () => request<OwnerProfile>("/api/owner/profile"),
+  onboardOwner: () => request<OwnerProfile>("/api/owner/onboard", { method: "POST" }),
   createAllowance: (body: {
     label: string;
     delegatedSigner: string;
