@@ -345,6 +345,7 @@ function PaymentLab({ overview, selectedId, onSelect, busy, result, onRun }: {
   const running = Boolean(busy);
   const resultSuccess = result?.includes("PAID");
   const activeAllowances = overview.allowances.filter((item) => item.status === "ACTIVE");
+  const executionDisabled = running || activeAllowances.length === 0;
   return <div className="console-content lab-content">
     <section className="lab-header">
       <div><span>BOUNDED EXECUTION</span><h2>Run a real x402 payment path.</h2><p>Each scenario builds a fresh delegated authorization and reaches the policy boundary.</p></div>
@@ -353,9 +354,9 @@ function PaymentLab({ overview, selectedId, onSelect, busy, result, onRun }: {
 
     <div className="lab-grid">
       <section className="scenario-controls">
-        <ScenarioButton tone="success" icon={<Zap />} title="Approved payment" detail="Exact recipient · below remaining cap" action="SETTLE" busy={busy === "success"} disabled={running} onClick={() => void onRun("success")} />
-        <ScenarioButton tone="warning" icon={<Gauge />} title="Over-limit payment" detail="Amount exceeds rolling allowance" action="CHALLENGE" busy={busy === "over-limit"} disabled={running} onClick={() => void onRun("over-limit")} />
-        <ScenarioButton tone="danger" icon={<Fingerprint />} title="Unapproved recipient" detail="payTo differs from on-chain policy" action="CHALLENGE" busy={busy === "unapproved-recipient"} disabled={running} onClick={() => void onRun("unapproved-recipient")} />
+        <ScenarioButton tone="success" icon={<Zap />} title="Approved payment" detail="Exact recipient · below remaining cap" action="SETTLE" busy={busy === "success"} disabled={executionDisabled} onClick={() => void onRun("success")} />
+        <ScenarioButton tone="warning" icon={<Gauge />} title="Over-limit payment" detail="Amount exceeds rolling allowance" action="CHALLENGE" busy={busy === "over-limit"} disabled={executionDisabled} onClick={() => void onRun("over-limit")} />
+        <ScenarioButton tone="danger" icon={<Fingerprint />} title="Unapproved recipient" detail="payTo differs from on-chain policy" action="CHALLENGE" busy={busy === "unapproved-recipient"} disabled={executionDisabled} onClick={() => void onRun("unapproved-recipient")} />
       </section>
 
       <section className={`execution-stage ${running ? "running" : ""} ${result ? resultSuccess ? "success" : "danger" : ""}`}>
@@ -460,7 +461,7 @@ function CreateAllowanceDialog({ overview, onClose, onCreated, createAllowance }
   onCreated: (record: AllowanceRecord) => Promise<void>;
   createAllowance: (form: { label: string; delegatedSigner: string; maxSpendAtomic: string; windowSeconds: number; recipient: string; expiresInSeconds: number }, onPhase: (phase: WalletOperationPhase) => void) => Promise<AllowanceRecord>;
 }) {
-  const [form, setForm] = useState({ label: "Research agent", delegatedSigner: overview.availableSigners[1] ?? overview.availableSigners[0] ?? "", maxSpendAtomic: "500000", windowSeconds: 3600, recipient: overview.merchant, expiresInSeconds: 3600 });
+  const [form, setForm] = useState({ label: "Research agent", delegatedSigner: overview.availableSigners[1] ?? overview.availableSigners[0] ?? "", maxSpendAtomic: "500000", windowSeconds: 3600, recipient: overview.merchant, expiresInSeconds: 86400 });
   const [phase, setPhase] = useState<"form" | WalletOperationPhase | "success">("form");
   const [error, setError] = useState<string>();
   const [created, setCreated] = useState<AllowanceRecord>();
