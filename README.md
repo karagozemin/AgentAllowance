@@ -126,6 +126,9 @@ pnpm --filter @agentallowance/console test:e2e
 pnpm --filter @agentallowance/x402-sdk-example typecheck
 ```
 
+The current suite passes 191 TypeScript unit/integration tests, 3 Rust contract tests, and 4
+desktop/mobile Playwright runs: 198 automated checks in total.
+
 The timed clean-environment prerequisite path is `scripts/quickstart-testnet.sh`. It prints the elapsed
 time and leaves the merchant/API processes in separate terminals so a failed service cannot be hidden
 inside a shell pipeline. The clean hosted-runner and local warm-cache measurements are recorded in
