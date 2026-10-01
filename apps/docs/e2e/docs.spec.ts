@@ -10,13 +10,15 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(dimensions.body, JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.viewport);
 }
 
-test("opens the developer portal and navigates to the quickstart", async ({ page }) => {
+test("opens directly on the overview and navigates to the quickstart", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Bounded payments for autonomous agents." })).toBeVisible();
-  await expect(page.getByText("npm install @agentallowance/sdk @stellar/stellar-sdk")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AgentAllowance overview" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Overview", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText("Edit page", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Last updated:/)).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 
-  await page.getByRole("link", { name: /Start building/ }).click();
+  await page.getByRole("link", { name: "5-minute quickstart", exact: true }).click();
   await expect(page.getByRole("heading", { name: "5-minute quickstart" })).toBeVisible();
   await expect(page.getByText("DELEGATED_SIGNER_SECRET", { exact: false }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
