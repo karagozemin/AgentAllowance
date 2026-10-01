@@ -82,7 +82,9 @@ function keypairFromSecret(name: string): Keypair {
   }
 }
 
-const hosted = Boolean(process.env.TREASURY_CONTRACT);
+const hosted = process.env.NODE_ENV === "production" ||
+  Boolean(process.env.RENDER_SERVICE_ID) ||
+  Boolean(process.env.TREASURY_CONTRACT);
 const admin = process.env.STELLAR_ADMIN_SECRET
   ? keypairFromSecret("STELLAR_ADMIN_SECRET")
   : Keypair.fromSecret(stellarSecret(process.env.STELLAR_ADMIN_IDENTITY ?? "agentallowance-admin"));

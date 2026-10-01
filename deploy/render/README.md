@@ -98,6 +98,9 @@ secret into these variables.
    select **Sync Blueprint**.
 3. Enter every field marked `sync: false`. Render generates the facilitator `API_KEY`, shares it with
    both Node services, and connects `REDIS_URL` without exposing either value to the browser.
+   The demo API requires `STELLAR_TOKEN_CONTRACT`, `TREASURY_CONTRACT`,
+   `STELLAR_MERCHANT_ADDRESS`, and `STELLAR_UNAPPROVED_RECIPIENT_ADDRESS`; the console additionally
+   requires its two policy contract addresses and signer/auth secrets. Do not leave these blank.
 4. Create or sync the Blueprint. The facilitator can fail until its secret file is installed.
 5. Open `agentallowance-facilitator > Environment > Secret Files`.
 6. Add a secret file named `local-signer.json` by uploading the encrypted local keystore.
