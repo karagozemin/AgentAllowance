@@ -87,9 +87,10 @@ jq '{token,smartAccount,spendingPolicy,recipientPolicy,merchant,unapprovedRecipi
 | `PERIOD_LEDGERS` | `periodLedgers` |
 | `PUBLIC_DEMO_ALLOWANCE_ID` | `allowanceRuleId` |
 
-The console needs Testnet-only fee-sponsor and delegated-signer material. The public demo admin private
-key stays outside the primary flow; set `STELLAR_ADMIN_ADDRESS` to the deployment's `admin` field.
-Every newly connected wallet becomes admin of its own deterministic treasury. On macOS, copy each
+The console needs Testnet-only fee-sponsor and delegated-signer material. The Blueprint pins the
+public demo's non-secret `STELLAR_ADMIN_ADDRESS` to the deployment's `admin` field; the corresponding
+private key stays outside the primary flow. Every newly connected wallet becomes admin of its own
+deterministic treasury. On macOS, copy each
 remaining secret directly to the clipboard
 so it is not printed or added to shell history:
 

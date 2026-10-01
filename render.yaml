@@ -143,7 +143,7 @@ services:
       - key: STELLAR_UNAPPROVED_RECIPIENT_ADDRESS
         sync: false
       - key: STELLAR_ADMIN_ADDRESS
-        sync: false
+        value: GCXCRXEYS4MDQ3DCP4X3FDY6NYSF56H3EUU64CWU6JRFNXMJM2I2XCHE
       - key: STELLAR_FEE_PAYER_SECRET
         sync: false
       - key: STELLAR_DELEGATE_SECRETS
