@@ -114,4 +114,20 @@ describe("AgentAllowance SDK", () => {
     store.putAllowance(record());
     expect(store.getAllowance("1")).toEqual(record());
   });
+
+  test("supports wallet-only admin custody without a server admin secret", () => {
+    expect(() => new AgentAllowance({
+      network: "stellar:testnet",
+      rpcUrl: "http://127.0.0.1:8000",
+      assetContract: contract,
+      treasuryContract: contract,
+      spendingPolicy: contract,
+      recipientPolicy: contract,
+      facilitatorUrl: "http://127.0.0.1:8787",
+      transactionSource: source,
+      adminAddress: admin.publicKey(),
+      delegatedSigners: { [delegate.publicKey()]: delegate },
+      store: new SqliteEvidenceStore(":memory:"),
+    })).not.toThrow();
+  });
 });

@@ -118,6 +118,8 @@ const deployment = {
   paymentAmount: PAYMENT_AMOUNT.toString(),
   spendingLimit: SPENDING_LIMIT.toString(),
   periodLedgers: PERIOD_LEDGERS,
+  assetCode: process.env.STELLAR_ASSET_CODE ?? "XLM",
+  assetDecimals: Number(process.env.STELLAR_ASSET_DECIMALS ?? "7"),
   wasmHashes: {
     treasury: wasmHash(wasm.treasury),
     spendingPolicy: wasmHash(wasm.spending),

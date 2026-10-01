@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { Address, Keypair, scValToNative } from "@stellar/stellar-sdk";
+import { Address, Keypair, Networks, scValToNative, xdr } from "@stellar/stellar-sdk";
 import {
+  buildDelegatedAuthorizationTemplate,
   computeAuthDigest,
   contextRuleIdsScVal,
   transferInvocation,
@@ -28,5 +29,42 @@ describe("smart-account authorization primitives", () => {
     expect(Address.fromScAddress(call.contractAddress()).toString()).toBe(token);
     expect(call.functionName().toString()).toBe("transfer");
     expect(call.args().map(scValToNative)).toEqual([from, to, 100n]);
+  });
+
+  test("builds an unsigned Freighter-compatible delegated admin entry", async () => {
+    const treasury = Address.contract(Buffer.alloc(32, 3));
+    const admin = Keypair.random().publicKey();
+    const rootInvocation = new xdr.SorobanAuthorizedInvocation({
+      function: xdr.SorobanAuthorizedFunction.sorobanAuthorizedFunctionTypeContractFn(
+        new xdr.InvokeContractArgs({
+          contractAddress: treasury.toScAddress(),
+          functionName: "add_context_rule",
+          args: [],
+        }),
+      ),
+      subInvocations: [],
+    });
+    const smartAccountEntry = new xdr.SorobanAuthorizationEntry({
+      credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(new xdr.SorobanAddressCredentials({
+        address: treasury.toScAddress(),
+        nonce: xdr.Int64.fromString("7"),
+        signatureExpirationLedger: 0,
+        signature: xdr.ScVal.scvVec([]),
+      })),
+      rootInvocation,
+    });
+    const result = await buildDelegatedAuthorizationTemplate({
+      smartAccountEntry,
+      delegate: admin,
+      contextRuleIds: [0],
+      validUntilLedgerSeq: 1234,
+      networkPassphrase: Networks.TESTNET,
+    });
+    const credentials = result.delegatedSignerEntry.credentials().address();
+    expect(Address.fromScAddress(credentials.address()).toString()).toBe(admin);
+    expect(credentials.signatureExpirationLedger()).toBe(1234);
+    expect(credentials.signature().vec()).toEqual([]);
+    expect(result.delegatedSignerEntry.rootInvocation().subInvocations()).toEqual([]);
+    expect(result.authDigest).toHaveLength(32);
   });
 });

@@ -23,6 +23,10 @@ export type DelegatedAuthorizationOptions = {
   networkPassphrase: string;
 };
 
+export type DelegatedAuthorizationTemplateOptions = Omit<DelegatedAuthorizationOptions, "delegate"> & {
+  delegate: string;
+};
+
 export function i128(value: bigint): xdr.ScVal {
   if (value < 0n) throw new RangeError("i128 helper only accepts non-negative payment amounts");
   return xdr.ScVal.scvI128(
@@ -125,5 +129,44 @@ export async function buildDelegatedAuthorizationEntries(
     networkPassphrase: options.networkPassphrase,
   });
 
+  return { smartAccountEntry, delegatedSignerEntry, authDigest };
+}
+
+export async function buildDelegatedAuthorizationTemplate(
+  options: DelegatedAuthorizationTemplateOptions,
+): Promise<{
+  smartAccountEntry: xdr.SorobanAuthorizationEntry;
+  delegatedSignerEntry: xdr.SorobanAuthorizationEntry;
+  authDigest: Buffer;
+}> {
+  let authDigest: Buffer | undefined;
+  const smartAccountEntry = await authorizeEntry(
+    options.smartAccountEntry,
+    async (_preimage, signaturePayload) => {
+      authDigest = computeAuthDigest(signaturePayload, options.contextRuleIds);
+      return { signatureScVal: authPayloadScVal(options.delegate, options.contextRuleIds) };
+    },
+    options.validUntilLedgerSeq,
+    options.networkPassphrase,
+  );
+  if (!authDigest) throw new Error("Stellar SDK did not produce an authorization payload");
+
+  const delegatedInvocation = new xdr.SorobanAuthorizedInvocation({
+    function: xdr.SorobanAuthorizedFunction.sorobanAuthorizedFunctionTypeContractFn(
+      new xdr.InvokeContractArgs({
+        contractAddress: smartAccountEntry.credentials().address().address(),
+        functionName: "__check_auth",
+        args: [xdr.ScVal.scvBytes(authDigest)],
+      }),
+    ),
+    subInvocations: [],
+  });
+  const delegatedSignerEntry = await authorizeInvocation({
+    publicKey: options.delegate,
+    signer: async () => ({ signatureScVal: xdr.ScVal.scvVec([]) }),
+    validUntilLedgerSeq: options.validUntilLedgerSeq,
+    invocation: delegatedInvocation,
+    networkPassphrase: options.networkPassphrase,
+  });
   return { smartAccountEntry, delegatedSignerEntry, authDigest };
 }

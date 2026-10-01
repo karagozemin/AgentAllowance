@@ -67,7 +67,9 @@ const app = createApp({
   facilitatorUrl: facilitatorUrl(),
   facilitatorApiKey: process.env.X402_FACILITATOR_API_KEY,
   publicBaseUrl,
-  store: new DemoPaymentStore(process.env.DEMO_DATABASE_URL ?? "./data/demo-api.db"),
+  store: new DemoPaymentStore(
+    process.env.DEMO_DATABASE_URL ?? path.join(root, "data", `demo-api-${deployment.smartAccount}.db`),
+  ),
 });
 
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, (info) => {

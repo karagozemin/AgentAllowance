@@ -6,6 +6,10 @@ import path from "node:path";
 export const workspaceRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const artifactRoot = path.join(workspaceRoot, "artifacts/testnet");
 
+function resolveWorkspacePath(value: string): string {
+  return path.isAbsolute(value) ? value : path.resolve(workspaceRoot, value);
+}
+
 export function stellar(args: string[], quiet = false): string {
   return execFileSync("stellar", quiet ? ["--quiet", ...args] : args, {
     cwd: workspaceRoot,
@@ -37,7 +41,7 @@ export async function createRunDirectory(): Promise<string> {
 
 export async function latestRunDirectory(): Promise<string> {
   const override = process.env.RUN_DIRECTORY;
-  if (override) return path.resolve(override);
+  if (override) return resolveWorkspacePath(override);
   const latest = JSON.parse(await readFile(path.join(artifactRoot, "latest.json"), "utf8")) as {
     runDirectory: string;
   };
@@ -61,7 +65,7 @@ export async function createAttemptDirectory(runDirectory: string, scenario: str
 
 export async function latestAttemptDirectory(): Promise<string> {
   const override = process.env.ATTEMPT_DIRECTORY;
-  if (override) return path.resolve(override);
+  if (override) return resolveWorkspacePath(override);
   const runDirectory = await latestRunDirectory();
   const latest = JSON.parse(
     await readFile(path.join(runDirectory, "latest-attempt.json"), "utf8"),

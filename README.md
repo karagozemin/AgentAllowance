@@ -10,7 +10,7 @@
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/security.md">Security model</a> ·
   <a href="docs/openzeppelin-facilitator-integration.md">Facilitator integration</a> ·
-  <a href="docs/evidence/testnet/2026-08-03T14-09-36Z/">Testnet evidence</a>
+  <a href="docs/evidence/testnet/2026-08-03T20-19-52Z/">Testnet USDC evidence</a>
 </p>
 
 <p align="center">
@@ -28,6 +28,10 @@ limit, an exact recipient policy, and a reusable policy-aware facilitator extens
 
 The existing compatibility proof remains unchanged under
 `proofs/stellar-x402-smart-account/` and is used as the regression source of truth.
+
+The repository application and contract code is MIT-licensed. The upstream-derived
+`packages/relayer-plugin-x402-facilitator` keeps its AGPL-3.0-only license and OpenZeppelin
+attribution; see that package's `LICENSE` file before redistributing it.
 
 ## Why AgentAllowance exists
 
@@ -80,16 +84,16 @@ The full component, trust-boundary, authorization, and sequence diagrams are in
 
 | Mode | Audience | Capability |
 | --- | --- | --- |
-| Public demo | Judges and visitors | Inspect treasury, allowances, policy decisions, receipts, and transaction evidence |
+| Public demo | Judges and visitors | Inspect evidence and trigger fixed approved/blocked scenarios with no arbitrary amount or recipient input |
 | Wallet owner | Configured treasury admin | Connect Freighter, prove wallet ownership, create and revoke bounded allowances |
 | Autonomous agent | Delegated backend signer | Complete x402 payments without per-payment owner approval |
 | Operator fallback | Maintainers | Relayer maintenance, reconciliation, deployment, and emergency API access |
 
 The primary UI does not expose a shared password. Freighter login uses a one-time, expiring challenge
-and a short-lived HttpOnly session. Basic Auth remains a server-side emergency fallback. In the
-current Testnet demo, the server still submits admin rule transactions through its configured admin
-signer after owner authentication; moving the Soroban admin authorization signature itself into
-Freighter is the next custody hardening milestone.
+and a short-lived HttpOnly session. Create and revoke use a second Freighter prompt to sign the exact
+prepared Soroban admin authorization entry; the backend validates the signer, nonce, expiry and
+invocation before enforcing simulation and fee-payer submission. Basic Auth and the server signer
+remain emergency Testnet fallbacks, not the primary product path.
 
 ## Pinned versions
 
@@ -114,7 +118,14 @@ pnpm test
 cargo test --workspace
 stellar contract build
 pnpm --filter @agentallowance/console test:e2e
+pnpm --filter @agentallowance/x402-sdk-example typecheck
 ```
+
+The timed clean-environment prerequisite path is `scripts/quickstart-testnet.sh`. It prints the elapsed
+time and leaves the merchant/API processes in separate terminals so a failed service cannot be hidden
+inside a shell pipeline. The clean hosted-runner and local warm-cache measurements are recorded in
+[docs/submission/quickstart-benchmark.md](docs/submission/quickstart-benchmark.md); the clean runner
+completed the full CI verification in 71 seconds.
 
 The TypeScript tests consume the proof's real transaction and simulation XDR. They confirm that the
 policy-aware validator accepts the proven payment while rejecting an unapproved contract, unrelated
@@ -157,7 +168,15 @@ rule ID against on-chain policy configuration.
 
 ## Testnet sequence
 
-Copy `.env.example` to `.env.local` and review every value. The deploy command creates and Friendbot-
+Copy `.env.example` to `.env.local` and review every value. For the PRD's official Testnet USDC path,
+first create the required trustlines and fund the fee payer from Circle's Testnet faucet:
+
+```bash
+pnpm --filter @agentallowance/testnet-cli run prepare-usdc
+# Set STELLAR_TOKEN_CONTRACT to the reported SAC and wait until the reported balance is non-zero.
+```
+
+The deploy command creates and Friendbot-
 funds missing Stellar CLI identities, deploys three contracts, and funds the smart account. It changes
 Testnet state.
 
@@ -183,7 +202,8 @@ pnpm --filter @agentallowance/testnet-cli run archive-settlement
 
 Each `authorize` command creates a new timestamped directory under `attempts/`; it never reuses a
 transaction XDR or overwrites earlier scenario evidence. `RUN_DIRECTORY` selects a deployment and
-`ATTEMPT_DIRECTORY` selects an exact payment attempt. Relayer secrets live only under the ignored
+`ATTEMPT_DIRECTORY` selects an exact payment attempt. Relative overrides are resolved from the
+workspace root, including when pnpm executes the command from a package directory. Relayer secrets live only under the ignored
 `artifacts/local/` runtime tree and are never copied into Testnet evidence.
 
 ## Confirmed Testnet settlement
@@ -236,10 +256,10 @@ defined by `render.yaml`. It contains the facilitator, merchant demo API, and au
 console; follow [the Render guide](deploy/render/README.md) without committing any signer or API
 secrets.
 
-The currently running Render service was last confirmed with the original rule `1`-pinned manifest.
-On 2026-08-03 it rejected newly created rule `2` with
-`invalid_exact_stellar_payload_auth_structure`. Redeploy the current dynamic manifest build before
-using that hosted URL for new allowances. Hosted infrastructure is not assumed mutable.
+The hosted facilitator URL is deployment-specific. Always run `/verify` against the URL recorded in the
+same evidence directory as the payment; do not infer current behavior from an older Render deploy.
+The self-hosted fork remains the reproducible fallback and is the reference implementation for dynamic
+context-rule IDs.
 
 ## Dynamic allowance Testnet result
 
@@ -281,9 +301,47 @@ Rule 2 spending state 100000 -> 200000
 Sanitized evidence, including the rejected expiry attempt, hosted responses, and exact state deltas,
 is under `docs/evidence/testnet/2026-08-03T14-09-36Z/`.
 
+## Independent SDK integration
+
+The second integration required by the PRD is [apps/x402-sdk-example](apps/x402-sdk-example/README.md).
+It uses only `@agentallowance/sdk` and the merchant's HTTP 402 endpoint. This keeps the reusable SDK
+contract separate from the console and testnet orchestration code.
+
+## Official Testnet USDC result
+
+On 2026-08-03 a fresh smart-account treasury was deployed against the official Stellar Testnet USDC
+SAC. The same deployment produced two enforcing-mode policy rejections and one complete
+`verify -> settle` payment through the local policy-aware OpenZeppelin Relayer.
+
+```text
+Asset                 USDC (7 decimals)
+Token contract        CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA
+Payment amount        100000 atomic (0.0100000 USDC)
+Transaction           11232c4accb4f6cbc6b4ba9455a25642be4e8b5c9d84d98cd8250bd0970152a3
+Ledger                3953687
+Treasury balance      5000000 -> 4900000
+Merchant balance      0 -> 100000
+Spending-limit state  0 -> 100000
+Over-limit verify     rejected; settlement not attempted
+Wrong-recipient verify rejected; settlement not attempted
+```
+
+The transaction is visible on
+[Stellar Expert](https://stellar.expert/explorer/testnet/tx/11232c4accb4f6cbc6b4ba9455a25642be4e8b5c9d84d98cd8250bd0970152a3).
+Sanitized, append-only deployment, rejection, verification, settlement, and state evidence is under
+[docs/evidence/testnet/2026-08-03T20-19-52Z](docs/evidence/testnet/2026-08-03T20-19-52Z/).
+
+## Submission evidence
+
+The reviewer-facing evidence index is [docs/submission/evidence-index.md](docs/submission/evidence-index.md).
+It maps each product claim to a Testnet transaction, a denial record, a test command, or an explicit
+known limitation. The short demo runbook is [docs/submission/demo-runbook.md](docs/submission/demo-runbook.md),
+and the remaining release gates are tracked in [docs/submission/checklist.md](docs/submission/checklist.md).
+
 ## Scope and limitations
 
-The MVP uses the Testnet native XLM SAC from the source proof. The PRD's USDC target needs a separate
-asset configuration test; multi-asset rules are not included. MPP, `recipient_policy_enforced`,
-threshold administration, npm publication and production custody are excluded. See the
+The MVP is now proven with the official Testnet USDC SAC. The earlier native XLM proof and hosted
+settlements remain historical compatibility evidence. Multi-asset rules, MPP,
+`recipient_policy_enforced`, threshold administration, npm publication and production custody are
+excluded. See the
 [architecture](docs/architecture.md) and [security model](docs/security.md).

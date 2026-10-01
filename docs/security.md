@@ -21,3 +21,23 @@ This is Testnet software and the contracts are unaudited. The local SQLite deplo
 a single-instance demo only; production requires a transactional shared database, authenticated
 console administration, key management/HSM integration, rate limits, monitoring and independent
 contract/facilitator audits.
+
+## Wallet-owner administration
+
+The owner login challenge is random, single-use, and valid for two minutes. A session is created only
+after an Ed25519 signature from the configured treasury admin and expires after fifteen minutes in an
+HttpOnly, SameSite cookie. A wallet-admin mutation uses a separate Soroban authorization signature.
+Prepared operations expire after sixty seconds and are deleted on first submission attempt.
+
+The backend rejects a signed admin entry if the signer address, nonce, signature-expiry ledger, root
+invocation, or invocation tree differs from the prepared template. It then runs enforcing-mode
+simulation before the fee payer signs and submits the envelope. A stolen web session alone therefore
+cannot create or revoke an allowance without a fresh Freighter signature.
+
+## Public demo controls
+
+The public demo endpoint accepts only three named scenarios and chooses the configured allowance on
+the server. Callers cannot supply an amount, recipient, asset, URL, signer, or transaction XDR. A
+successful settlement is rate-limited per forwarded client address, while the on-chain spending cap
+provides the final global loss bound. Blocked scenarios still execute the same application and smart-
+account policy paths but never call settlement after denial.

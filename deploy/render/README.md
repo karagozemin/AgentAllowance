@@ -30,8 +30,8 @@ transactions remain on Testnet. This is an explicit demo limitation, not product
 - The console exposes its UI, `/operator`, `/health`, and `/api/overview` publicly. The dashboard uses a
   Freighter-signed treasury-owner challenge and a short-lived HttpOnly session. Basic Auth remains an
   emergency API fallback; credentials are never bundled into React.
-- The demo API has no admin signer. The console alone receives admin, transaction-source, and
-  delegated-signer secrets.
+- The demo API has no admin signer. The console receives the public admin address plus fee-payer and
+  delegated-signer secrets; the admin private key stays in Freighter.
 
 ## 1. Locate the local secrets
 
@@ -71,26 +71,34 @@ jq '{token,smartAccount,spendingPolicy,recipientPolicy,merchant,unapprovedRecipi
 | Render variable | Deployment field |
 | --- | --- |
 | `STELLAR_TOKEN_CONTRACT` | `token` |
+| `STELLAR_ASSET_CODE` | `assetCode` (`USDC` for the PRD deployment) |
 | `TREASURY_CONTRACT` | `smartAccount` |
 | `SPENDING_POLICY_CONTRACT` | `spendingPolicy` |
 | `RECIPIENT_POLICY_CONTRACT` | `recipientPolicy` |
 | `STELLAR_MERCHANT_ADDRESS` | `merchant` |
 | `STELLAR_UNAPPROVED_RECIPIENT_ADDRESS` | `unapprovedRecipient` |
+| `INITIAL_DELEGATED_SIGNER` | `delegate` |
+| `INITIAL_ALLOWANCE_RULE_ID` | `allowanceRuleId` |
+| `INITIAL_ALLOWANCE_VALID_UNTIL_LEDGER` | `validUntil` |
+| `SPENDING_LIMIT` | `spendingLimit` |
+| `PERIOD_LEDGERS` | `periodLedgers` |
+| `PUBLIC_DEMO_ALLOWANCE_ID` | `allowanceRuleId` |
 
-The console needs Testnet-only signer material. On macOS, copy each value directly to the clipboard
+The console needs Testnet-only fee-payer and delegated-signer material. The admin private key stays in
+Freighter; set `STELLAR_ADMIN_ADDRESS` to the deployment's `admin` field. On macOS, copy each remaining secret directly to the clipboard
 so it is not printed or added to shell history:
 
 ```bash
-stellar --quiet keys secret agentallowance-admin | pbcopy
 stellar --quiet keys secret agentallowance-fee-payer | pbcopy
 stellar --quiet keys secret agentallowance-delegate-2 | pbcopy
 openssl rand -base64 32 | pbcopy
 ```
 
-Paste those results, one at a time, into `STELLAR_ADMIN_SECRET`, `STELLAR_FEE_PAYER_SECRET`,
+Paste those results, one at a time, into `STELLAR_FEE_PAYER_SECRET`,
 `STELLAR_DELEGATE_SECRETS`, and `CONSOLE_AUTH_PASSWORD`. Use the delegate that will own newly created
 allowances. Multiple delegate secrets may be comma-separated. Never put the OpenZeppelin Relayer
-secret into these variables.
+secret into these variables. `STELLAR_ADMIN_SECRET` is an optional emergency Testnet fallback and
+should be omitted from the primary wallet-owner deployment.
 
 ## 3. Create or update the Blueprint
 
