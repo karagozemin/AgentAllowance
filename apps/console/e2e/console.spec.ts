@@ -243,6 +243,50 @@ test("moves from the product landing into the live control plane", async ({ page
   expect(errors).toEqual([]);
 });
 
+test("retries the scenario that produced the result", async ({ page }) => {
+  const scenarios: string[] = [];
+  await page.unroute("**/api/public-demo/run");
+  await page.route("**/api/public-demo/run", async (route) => {
+    const body = route.request().postDataJSON() as { scenario: string };
+    scenarios.push(body.scenario);
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, reason: "FACILITATOR_REJECTED" }),
+    });
+  });
+
+  await page.goto("/app");
+  if (await page.getByRole("button", { name: "Open navigation" }).isVisible()) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+  }
+  await page.getByRole("button", { name: "Payment lab", exact: true }).click();
+  await page.getByRole("button", { name: /Approved payment/ }).click();
+  await expect(page.getByText("FACILITATOR_REJECTED", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Run again" }).click();
+  await expect.poll(() => scenarios).toEqual(["success", "success"]);
+});
+
+test("does not retry an uncertain settlement", async ({ page }) => {
+  await page.unroute("**/api/public-demo/run");
+  await page.route("**/api/public-demo/run", (route) => route.fulfill({
+    status: 400,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: false, reason: "SETTLEMENT_UNKNOWN" }),
+  }));
+
+  await page.goto("/app");
+  if (await page.getByRole("button", { name: "Open navigation" }).isVisible()) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+  }
+  await page.getByRole("button", { name: "Payment lab", exact: true }).click();
+  await page.getByRole("button", { name: /Approved payment/ }).click();
+  await expect(page.getByText("SETTLEMENT STATUS UNKNOWN", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Run again" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Review evidence" }).click();
+  await expect(page.getByRole("heading", { name: "On-chain evidence" })).toBeVisible();
+});
+
 test("keeps legacy operator route on the wallet-owner screen", async ({ page }) => {
   await page.goto("/operator");
   await expect(page.getByRole("heading", { name: "Treasury overview" })).toBeVisible();

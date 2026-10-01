@@ -31,8 +31,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
-  const body = await response.json() as T & { message?: string; error?: string };
-  if (!response.ok) throw new Error(body.message ?? body.error ?? `HTTP ${response.status}`);
+  const body = await response.json() as T & { message?: string; error?: string; reason?: string };
+  if (!response.ok) throw new Error(body.message ?? body.error ?? body.reason ?? `HTTP ${response.status}`);
   return body;
 }
 

@@ -116,7 +116,7 @@ export function createConsoleApp(config: ConsoleApiConfig): Hono {
     context.header("Referrer-Policy", "no-referrer");
     context.header(
       "Content-Security-Policy",
-      "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
     );
     context.header("Cache-Control", "no-store");
     await next();

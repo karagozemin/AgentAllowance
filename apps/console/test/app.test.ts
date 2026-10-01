@@ -138,6 +138,13 @@ describe("console API", () => {
     })).status).toBe(200);
   });
 
+  test("allows wallet WebAssembly without enabling JavaScript eval", async () => {
+    const response = await setup().app.request("/health");
+    const policy = response.headers.get("content-security-policy");
+    expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(policy).not.toContain("'unsafe-eval'");
+  });
+
   test("rejects unauthenticated state changes before calling the SDK", async () => {
     const { app, create, payFetch } = setup();
     expect((await app.request("/api/allowances", {

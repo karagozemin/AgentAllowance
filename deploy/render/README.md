@@ -6,6 +6,9 @@ the three Docker web services on Render Starter instances.
 The Blueprint disables OpenZeppelin's persistent Node.js plugin worker pool because its startup heap
 budget exceeds the Starter instance's 512 MB memory; the Relayer uses its supported legacy ts-node
 execution path instead. This changes execution capacity, not facilitator validation.
+The internal Relayer API rate limit must accommodate the burst of RPC calls made by merchant
+verification followed by settlement verification. Setting it below the Blueprint's `20` requests per
+second and `60` request burst can reject a valid payment midway through the flow.
 OpenZeppelin Relayer `1.7.0`'s legacy ts-node plugin socket does not reliably service nested RPC calls
 under constrained Render resources. The container therefore runs a minimal public adapter that loads
 the same bundled policy-aware handler once and calls the local first-party Relayer HTTP API for

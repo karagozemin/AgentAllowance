@@ -103,6 +103,7 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<string>();
+  const [lastScenario, setLastScenario] = useState<Scenario>("success");
   const [ownerAddress, setOwnerAddress] = useState<string>();
   const [ownerProfile, setOwnerProfile] = useState<OwnerProfile>();
   const [ownerBusy, setOwnerBusy] = useState(false);
@@ -208,6 +209,7 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
       return;
     }
     if (executable.allowanceId !== selectedId) setSelectedId(executable.allowanceId);
+    setLastScenario(scenario);
     setBusy(scenario); setError(undefined); setResult(undefined);
     try {
       const response = ownerProfile?.onboarded ? await api.run(executable.allowanceId, scenario) : await api.runPublic(scenario);
@@ -268,7 +270,7 @@ export function ConsoleApp({ onExit }: { onExit: () => void }) {
             if (!ownerAddress || !ownerProfile?.onboarded) { void connectOwner(); return; }
             setPendingRevoke(allowance);
           }} busy={busy} onOpenLab={() => navigate("lab")} />}
-          {view === "lab" && <PaymentLab overview={overview} selectedId={selectedId} onSelect={setSelectedId} busy={busy} result={result} onRun={run} />}
+          {view === "lab" && <PaymentLab overview={overview} selectedId={selectedId} onSelect={setSelectedId} busy={busy} result={result} lastScenario={lastScenario} onRun={run} onReviewEvidence={() => navigate("evidence")} />}
           {view === "evidence" && <EvidenceView overview={overview} />}
         </div>
       </>}
@@ -334,16 +336,19 @@ function OverviewView({ overview, totals, selectedId, onSelect, onRevoke, busy, 
   </div>;
 }
 
-function PaymentLab({ overview, selectedId, onSelect, busy, result, onRun }: {
+function PaymentLab({ overview, selectedId, onSelect, busy, result, lastScenario, onRun, onReviewEvidence }: {
   overview: Overview;
   selectedId: string;
   onSelect: (id: string) => void;
   busy?: string;
   result?: string;
+  lastScenario: Scenario;
   onRun: (scenario: Scenario) => Promise<void>;
+  onReviewEvidence: () => void;
 }) {
   const running = Boolean(busy);
   const resultSuccess = result?.includes("PAID");
+  const resultUncertain = result === "SETTLEMENT_UNKNOWN";
   const activeAllowances = overview.allowances.filter((item) => item.status === "ACTIVE");
   const executionDisabled = running || activeAllowances.length === 0;
   return <div className="console-content lab-content">
@@ -359,11 +364,11 @@ function PaymentLab({ overview, selectedId, onSelect, busy, result, onRun }: {
         <ScenarioButton tone="danger" icon={<Fingerprint />} title="Unapproved recipient" detail="payTo differs from on-chain policy" action="CHALLENGE" busy={busy === "unapproved-recipient"} disabled={executionDisabled} onClick={() => void onRun("unapproved-recipient")} />
       </section>
 
-      <section className={`execution-stage ${running ? "running" : ""} ${result ? resultSuccess ? "success" : "danger" : ""}`}>
+      <section className={`execution-stage ${running ? "running" : ""} ${result ? resultSuccess ? "success" : resultUncertain ? "warning" : "danger" : ""}`}>
         <div className="stage-grid" aria-hidden="true" />
         {!result && !running && <div className="stage-idle"><span><TestTube2 /></span><strong>Execution environment ready</strong><p>Select a scenario to generate fresh, inspectable Testnet evidence.</p><div><i />FACILITATOR ONLINE</div></div>}
         {running && <ExecutionProgress />}
-        {result && !running && <div className="stage-result"><span className="result-icon">{resultSuccess ? <Check /> : <ShieldX />}</span><small>{resultSuccess ? "SETTLEMENT COMPLETE" : "POLICY ENFORCED"}</small><strong>{result}</strong><p>{resultSuccess ? "Protected resource unlocked. Receipt matched to the original challenge." : "Authorization stopped before transfer. Treasury balance remains protected."}</p><button onClick={() => void onRun(resultSuccess ? "success" : result.includes("RECIPIENT") ? "unapproved-recipient" : "over-limit")}><RefreshCw />Run again</button></div>}
+        {result && !running && <div className="stage-result"><span className="result-icon">{resultSuccess ? <Check /> : resultUncertain ? <AlertTriangle /> : <ShieldX />}</span><small>{resultSuccess ? "SETTLEMENT COMPLETE" : resultUncertain ? "SETTLEMENT STATUS UNKNOWN" : "POLICY ENFORCED"}</small><strong>{result}</strong><p>{resultSuccess ? "Protected resource unlocked. Receipt matched to the original challenge." : resultUncertain ? "The payment was not retried. Review its evidence before starting another settlement." : "Authorization stopped before transfer. Treasury balance remains protected."}</p>{resultUncertain ? <button onClick={onReviewEvidence}><FileCheck2 />Review evidence</button> : <button onClick={() => void onRun(lastScenario)}><RefreshCw />Run again</button>}</div>}
       </section>
     </div>
 

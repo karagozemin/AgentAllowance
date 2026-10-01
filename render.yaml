@@ -57,10 +57,11 @@ services:
         value: "2"
       - key: MAX_CONNECTIONS
         value: "32"
+      # One payment performs both merchant and settlement verification, each with several internal RPC calls.
       - key: RATE_LIMIT_REQUESTS_PER_SECOND
-        value: "2"
+        value: "20"
       - key: RATE_LIMIT_BURST_SIZE
-        value: "5"
+        value: "60"
 
   - type: web
     name: agentallowance-demo-api

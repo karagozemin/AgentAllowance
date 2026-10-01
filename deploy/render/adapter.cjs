@@ -40,7 +40,7 @@ async function relayerRequest(path, init = {}) {
   const text = await response.text();
   const body = text ? JSON.parse(text) : null;
   if (!response.ok) {
-    throw new Error(`Relayer HTTP ${response.status}: ${text}`);
+    throw new Error(`Relayer request ${path} failed with HTTP ${response.status}: ${text}`);
   }
   return body?.data ?? body;
 }
