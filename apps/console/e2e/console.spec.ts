@@ -225,8 +225,11 @@ test("moves from the product landing into the live control plane", async ({ page
   }
   await page.getByRole("button", { name: "Payment lab", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Payment lab" })).toBeVisible();
-  await expect(page.getByLabel("ACTIVE ALLOWANCE")).toHaveValue("2");
-  await expect(page.getByLabel("ACTIVE ALLOWANCE").locator("option")).toHaveCount(1);
+  const allowanceSelect = page.getByLabel("ALLOWANCE");
+  await expect(allowanceSelect).toHaveValue("2");
+  await expect(allowanceSelect.locator("option")).toHaveCount(2);
+  await expect(allowanceSelect.locator('option[value="1"]')).toHaveAttribute("disabled", "");
+  await expect(allowanceSelect.locator('option[value="1"]')).toContainText("expired");
   await expect(page.getByRole("button", { name: /Approved payment/ })).toBeVisible();
   await expectNoViewportOverflow(page);
   expect(errors).toEqual([]);
